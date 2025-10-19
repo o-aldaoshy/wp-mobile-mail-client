@@ -1,0 +1,5 @@
+{
+  "name": "WP Mobile Mail Client",
+  "description": "A Samsung Email-inspired mobile web client built with React and Tailwind CSS. It provides a clean, responsive interface for managing emails, designed with best practices for modern web applications.",
+  "requestFramePermissions": []
+}

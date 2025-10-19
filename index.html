@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-g" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta
+      name="description"
+      content="Gemini Mail Client"
+    />
+    <title>Gemini Mail Client</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style type="text/tailwindcss">
+      @layer base {
+        :root {
+          --color-bg: 248 249 250; /* #f8f9fa */
+          --color-surface: 255 255 255; /* #ffffff */
+          --color-surface-alt: 248 249 250;
+          --color-on-surface: 33 37 41; /* #212529 */
+          --color-on-surface-variant: 108 117 125; /* #6c757d */
+          --color-primary: 103 154 65; /* #679a41 */
+          --color-primary-container: 225 238 215; /* #e1eed7 */
+          --color-on-primary: 255 255 255;
+          --color-outline: 222 226 230; /* #dee2e6 */
+          --color-error: 220 53 69; /* #dc3545 */
+          --color-success: 25 135 84; /* #198754 */
+          --color-accent: 253 126 20; /* #fd7e14 */
+          --color-vip: 253 126 20;
+        }
+
+        .dark {
+          --color-bg: 28 28 30; /* #1c1c1e */
+          --color-surface: 44 44 46; /* #2c2c2e */
+          --color-surface-alt: 28 28 30;
+          --color-on-surface: 242 242 247; /* #f2f2f7 */
+          --color-on-surface-variant: 152 152 157; /* #98989d */
+          --color-primary: 139 195 74; /* #8BC34A */
+          --color-primary-container: 53 74 35; /* #354a23 */
+          --color-on-primary: 255 255 255;
+          --color-outline: 68 68 70; /* #444446 */
+          --color-error: 255 69 58; /* #ff453a */
+          --color-success: 50 215 75; /* #32d74b */
+          --color-accent: 255 159 10; /* #ff9f0a */
+          --color-vip: 255 159 10;
+        }
+      }
+      @layer utilities {
+        @keyframes slide-up {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        .animate-slide-up {
+            animation: slide-up 0.3s ease-out;
+        }
+      }
+    </style>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'bg': 'rgb(var(--color-bg) / <alpha-value>)',
+              'surface': 'rgb(var(--color-surface) / <alpha-value>)',
+              'surface-alt': 'rgb(var(--color-surface-alt) / <alpha-value>)',
+              'on-surface': 'rgb(var(--color-on-surface) / <alpha-value>)',
+              'on-surface-variant': 'rgb(var(--color-on-surface-variant) / <alpha-value>)',
+              'primary': 'rgb(var(--color-primary) / <alpha-value>)',
+              'primary-container': 'rgb(var(--color-primary-container) / <alpha-value>)',
+              'on-primary': 'rgb(var(--color-on-primary) / <alpha-value>)',
+              'outline': 'rgb(var(--color-outline) / <alpha-value>)',
+              'error': 'rgb(var(--color-error) / <alpha-value>)',
+              'success': 'rgb(var(--color-success) / <alpha-value>)',
+              'accent': 'rgb(var(--color-accent) / <alpha-value>)',
+              'vip': 'rgb(var(--color-vip) / <alpha-value>)',
+            },
+          }
+        }
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.25.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
