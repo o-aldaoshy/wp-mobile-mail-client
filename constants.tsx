@@ -1,4 +1,5 @@
 
+
 import { Message, Account, Folder, SmimeStatus, GroupChat } from './types';
 import { 
     PinIcon, DocumentDuplicateIcon, ExclamationTriangleIcon, TrashIcon, ArchiveBoxIcon,
@@ -73,7 +74,10 @@ export const MESSAGES: Message[] = [
       isThread: false,
       attachments: [],
       folder: 'inbox',
-      smimeStatus: SmimeStatus.NONE
+      smimeStatus: SmimeStatus.NONE,
+      isAnswered: true,
+      isFavorite: false,
+      category: 'Updates',
   },
   {
       id: 'msg_aws',
@@ -88,7 +92,10 @@ export const MESSAGES: Message[] = [
       isThread: false,
       attachments: [],
       folder: 'inbox',
-      smimeStatus: SmimeStatus.NONE
+      smimeStatus: SmimeStatus.NONE,
+      isAnswered: false,
+      isFavorite: false,
+      category: 'Promotions',
   },
   {
     id: 'msg1',
@@ -105,7 +112,11 @@ export const MESSAGES: Message[] = [
     threadCount: 2,
     attachments: [],
     folder: 'inbox',
-    smimeStatus: SmimeStatus.VALID
+    smimeStatus: SmimeStatus.VALID,
+    isAnswered: true,
+    isFavorite: true,
+    labels: ['Updates'],
+    category: 'Updates',
   },
   {
     id: 'msg2',
@@ -142,7 +153,10 @@ export const MESSAGES: Message[] = [
     isThread: false,
     attachments: [{ id: 'att1', fileName: 'SECURITY_WARNING_FROM_WP.txt', size: '912 B', type: 'document' }],
     folder: 'inbox',
-    smimeStatus: SmimeStatus.NONE
+    smimeStatus: SmimeStatus.NONE,
+    isAnswered: false,
+    isFavorite: false,
+    category: 'Updates',
   },
   {
     id: 'msg3',
@@ -159,7 +173,11 @@ export const MESSAGES: Message[] = [
     threadCount: 2,
     attachments: [],
     folder: 'inbox',
-    smimeStatus: SmimeStatus.UNKNOWN
+    smimeStatus: SmimeStatus.UNKNOWN,
+    isAnswered: true,
+    isFavorite: false,
+    labels: ['Personal'],
+    category: 'Primary',
   },
   {
     id: 'msg4',
@@ -175,7 +193,29 @@ export const MESSAGES: Message[] = [
     threadId: 'thread-clickup',
     attachments: [{ id: 'att2', fileName: 'security.pdf', size: '1.2MB', type: 'pdf' }],
     folder: 'inbox',
-    smimeStatus: SmimeStatus.INVALID
+    smimeStatus: SmimeStatus.INVALID,
+    isAnswered: false,
+    isFavorite: true,
+    labels: ['Social'],
+    category: 'Social',
+  },
+  {
+    id: 'msg_forum',
+    sender: { name: 'StackOverflow Digest', email: 'digest@stackoverflow.com' },
+    recipients: { to: ['alex.j@example.com'] },
+    subject: "Top questions from this week",
+    snippet: "Here are the top questions from the tags you follow...",
+    body: '<p>See the latest questions.</p>',
+    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+    isRead: false,
+    isFlagged: false,
+    isThread: false,
+    attachments: [],
+    folder: 'inbox',
+    smimeStatus: SmimeStatus.NONE,
+    isAnswered: false,
+    isFavorite: false,
+    category: 'Forums',
   },
   {
     id: 'msg5',
@@ -187,12 +227,15 @@ export const MESSAGES: Message[] = [
     timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last week
     isRead: true,
     isFlagged: false,
-    // Fix: Add missing 'isThread' property as required by the 'Message' type.
     isThread: false,
     threadId: 'thread-worldposta',
     attachments: [],
     folder: 'in_design',
-    smimeStatus: SmimeStatus.NONE
+    smimeStatus: SmimeStatus.NONE,
+    isAnswered: false,
+    isFavorite: false,
+    labels: ['Forums'],
+    category: 'Primary',
   },
    {
     id: 'msg6',
@@ -207,6 +250,9 @@ export const MESSAGES: Message[] = [
     isThread: false,
     attachments: [{ id: 'att3', fileName: 'login-details.txt', size: '1KB', type: 'document' }],
     folder: 'in_design',
-    smimeStatus: SmimeStatus.NONE
+    smimeStatus: SmimeStatus.NONE,
+    isAnswered: true,
+    isFavorite: false,
+    category: 'Updates',
   },
 ];

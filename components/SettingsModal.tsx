@@ -2,7 +2,7 @@ import React, { useState, useContext, useRef, useEffect } from 'react';
 // Fix: `createPortal` is available on the `react-dom` package, not `react-dom/client`.
 import ReactDOM from 'react-dom';
 import { AppContext } from '../context/AppContext';
-import { ArrowLeftIcon, PlusIcon, ExchangeIcon, InboxArrowDownIcon, FolderOpenIcon, TrashIcon, CheckIcon, ChevronUpIcon, CheckVIcon, CheckThinIcon, ArrowDownTrayIcon, CalendarDaysIcon, UserIcon, MapPinIcon, CameraIcon, BellIcon, MusicalNoteIcon, InformationCircleIcon, SearchIcon, QuestionMarkCircleIcon, ChatBubbleLeftIcon, HeadphonesIcon, UsersIcon, PaperAirplaneIcon, PinIcon, ClockIcon, ArchiveBoxIcon, ArrowUturnLeftIcon, EllipsisVerticalIcon, MoveIcon, StarIcon, ExclamationTriangleIcon, EnvelopeXMarkIcon } from './icons';
+import { ArrowLeftIcon, PlusIcon, ExchangeIcon, InboxArrowDownIcon, FolderOpenIcon, TrashIcon, CheckIcon, ChevronUpIcon, CheckVIcon, CheckThinIcon, ArrowDownTrayIcon, CalendarDaysIcon, UserIcon, MapPinIcon, CameraIcon, BellIcon, MusicalNoteIcon, InformationCircleIcon, SearchIcon, QuestionMarkCircleIcon, ChatBubbleLeftIcon, HeadphonesIcon, UsersIcon, PaperAirplaneIcon, PinIcon, ClockIcon, ArchiveBoxIcon, ArrowUturnLeftIcon, EllipsisVerticalIcon, MoveIcon, StarIcon, ExclamationTriangleIcon, EnvelopeXMarkIcon, BackspaceIcon, XMarkIcon } from './icons';
 import { IconButton } from './ui/IconButton';
 import { OutOfOfficeModal } from './OutOfOfficeModal';
 import { AddAccountScreen } from './AddAccountScreen';
@@ -10,6 +10,7 @@ import { ManageFoldersScreen } from './ManageFoldersScreen';
 import { SwipeActionsScreen, SwipeActionItem } from './SwipeActionsScreen';
 import { EditSwipeActionScreen, ALL_SWIPE_ACTIONS } from './EditSwipeActionScreen';
 import { AppProgressScreen } from './AppProgressScreen';
+import { SignatureModal } from './SignatureModal';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -242,6 +243,78 @@ const ViewOptionsPopup: React.FC<{
   );
 };
 
+// --- New component for the "Preview Lines" options popup ---
+const PreviewLinesPopup: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  targetRef: React.RefObject<HTMLDivElement>;
+  options: string[];
+  selectedValue: string;
+  onSelect: (value: string) => void;
+}> = ({ isOpen, onClose, targetRef, options, selectedValue, onSelect }) => {
+  const popupRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (isOpen && targetRef.current) {
+      const rect = targetRef.current.getBoundingClientRect();
+      setPosition({
+        top: rect.top + window.scrollY - 8,
+        left: rect.left + window.scrollX + 16,
+      });
+    }
+  }, [isOpen, targetRef]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isOpen &&
+        popupRef.current &&
+        !popupRef.current.contains(event.target as Node) &&
+        targetRef.current &&
+        !targetRef.current.contains(event.target as Node)
+      ) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, onClose, targetRef]);
+
+  if (!isOpen) return null;
+
+  return ReactDOM.createPortal(
+    <div
+      ref={popupRef}
+      className="fixed z-[60] bg-surface rounded-2xl shadow-lg p-2 w-48"
+      style={{ top: position.top, left: position.left }}
+    >
+      <ul className="space-y-1">
+        {options.map((option) => (
+          <li key={option}>
+            <button
+              onClick={() => {
+                onSelect(option);
+                onClose();
+              }}
+              className="w-full flex items-center justify-between px-3 py-2.5 text-left rounded-lg hover:bg-primary-container/50 text-base"
+            >
+              <span className={`${selectedValue === option ? 'text-accent font-semibold' : 'text-on-surface'}`}>
+                {option}
+              </span>
+              {selectedValue === option && (
+                 <CheckVIcon className="h-5 w-5 text-accent" />
+              )}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>,
+    document.body
+  );
+};
+
 // --- New component for the "Dark mode" options popup ---
 const DarkModePopup: React.FC<{
   isOpen: boolean;
@@ -389,10 +462,12 @@ interface ToggleSwitchProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: string;
+  disabled?: boolean;
 }
 
-const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange, label }) => {
+const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange, label, disabled = false }) => {
   const handleToggle = () => {
+    if (disabled) return;
     onChange(!checked);
   };
 
@@ -403,9 +478,12 @@ const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange, label })
       aria-checked={checked}
       aria-label={label}
       onClick={handleToggle}
+      disabled={disabled}
       className={`${
         checked ? 'bg-primary' : 'bg-gray-300 dark:bg-zinc-600'
-      } relative inline-flex h-8 w-[52px] flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2`}
+      } relative inline-flex h-8 w-[52px] flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+        disabled ? 'opacity-50 cursor-not-allowed' : ''
+      }`}
     >
       <span
         className={`${
@@ -432,14 +510,14 @@ interface SettingsItemProps {
   value?: string;
   hasToggle?: boolean;
   isToggleOn?: boolean;
-
   onToggle?: (isOn: boolean) => void;
   onClick?: () => void;
   icon?: React.ReactNode;
+  disabled?: boolean;
 }
 
 const SettingsItem: React.FC<SettingsItemProps> = ({ 
-  title, description, value, hasToggle, isToggleOn, onToggle, onClick, icon
+  title, description, value, hasToggle, isToggleOn, onToggle, onClick, icon, disabled = false
 }) => {
   const content = (
     <>
@@ -450,25 +528,26 @@ const SettingsItem: React.FC<SettingsItemProps> = ({
         {value && !description && <p className="text-sm text-accent font-medium">{value}</p>}
       </div>
       {hasToggle && onToggle && (
-        <ToggleSwitch checked={!!isToggleOn} onChange={onToggle} label={title} />
+        <ToggleSwitch checked={!!isToggleOn} onChange={onToggle} label={title} disabled={disabled} />
       )}
     </>
   );
 
   const itemClasses = "flex items-center w-full text-left px-4 py-3";
-  const contentWrapperClasses = "flex items-center w-full";
+  const disabledClasses = disabled ? 'opacity-50' : '';
+  const finalContentClasses = `flex items-center w-full ${disabledClasses}`;
 
   if (onClick) {
     return (
-      <button onClick={onClick} className={itemClasses}>
-        <div className={contentWrapperClasses}>{content}</div>
+      <button onClick={disabled ? undefined : onClick} className={itemClasses} disabled={disabled}>
+        <div className={finalContentClasses}>{content}</div>
       </button>
     );
   }
   
   return (
     <div className={itemClasses}>
-      <div className={contentWrapperClasses}>{content}</div>
+      <div className={finalContentClasses}>{content}</div>
     </div>
   );
 };
@@ -627,11 +706,26 @@ const EmailFoldersToSyncScreen: React.FC<{ onBack: () => void }> = ({ onBack }) 
     );
 };
 
+const SYNC_SCHEDULE_OPTIONS = [
+    'Manually',
+    'Using regular schedule',
+];
 
 // --- Sync Schedule Screen Component ---
-
-const SyncScheduleScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+const SyncScheduleScreen: React.FC<{
+    onBack: () => void;
+    onNavigate: (view: keyof typeof views) => void;
+    syncScheduleValue: string;
+}> = ({ onBack, onNavigate, syncScheduleValue }) => {
     const [peakSchedule, setPeakSchedule] = useState(false);
+    const [roamingSyncSchedule, setRoamingSyncSchedule] = useState('Manually');
+    const [isRoamingPopupOpen, setIsRoamingPopupOpen] = useState(false);
+    const roamingSyncRef = useRef<HTMLDivElement>(null);
+
+    const handleSelectRoamingSchedule = (value: string) => {
+        setRoamingSyncSchedule(value);
+        setIsRoamingPopupOpen(false);
+    };
 
     return (
         <>
@@ -644,9 +738,15 @@ const SyncScheduleScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             </header>
             <main className="flex-grow overflow-y-auto p-4 pb-8 space-y-6">
                 <SettingsCard>
-                    <SettingsItem title="Set sync schedule" value="Auto (when received)" />
+                    <SettingsItem title="Set sync schedule" value={syncScheduleValue} onClick={() => onNavigate('setSyncSchedule')} />
                     <div className="border-t border-outline mx-4"></div>
-                    <SettingsItem title="Sync schedule while roaming" value="Manually" />
+                    <div ref={roamingSyncRef}>
+                        <SettingsItem 
+                            title="Sync schedule while roaming" 
+                            value={roamingSyncSchedule} 
+                            onClick={() => setIsRoamingPopupOpen(true)}
+                        />
+                    </div>
                 </SettingsCard>
 
                 <div className="space-y-2">
@@ -662,9 +762,65 @@ const SyncScheduleScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     </SettingsCard>
                 </div>
             </main>
+            <SettingsDropdown
+                isOpen={isRoamingPopupOpen}
+                onClose={() => setIsRoamingPopupOpen(false)}
+                targetRef={roamingSyncRef}
+                options={SYNC_SCHEDULE_OPTIONS}
+                selectedValue={roamingSyncSchedule}
+                onSelect={handleSelectRoamingSchedule}
+            />
         </>
     );
 };
+
+// --- Set Sync Schedule Screen Component ---
+const SyncScheduleRadioOption: React.FC<{ label: string; isSelected: boolean; onClick: () => void; }> = ({ label, isSelected, onClick }) => (
+    <button onClick={onClick} className="w-full flex items-center px-4 py-4 text-left">
+        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-4 shrink-0 transition-colors ${isSelected ? 'border-accent' : 'border-on-surface-variant/50'}`}>
+            {isSelected && <div className="w-3 h-3 rounded-full bg-accent" />}
+        </div>
+        <span className="font-medium text-on-surface text-base">{label}</span>
+    </button>
+);
+
+const SetSyncScheduleScreen: React.FC<{
+    onBack: () => void;
+    currentSchedule: string;
+    onSelectSchedule: (schedule: string) => void;
+}> = ({ onBack, currentSchedule, onSelectSchedule }) => {
+
+    const handleSelect = (schedule: string) => {
+        onSelectSchedule(schedule);
+        onBack();
+    };
+
+    return (
+        <>
+            <header className="bg-surface flex items-center p-4 shrink-0">
+                <IconButton label="Back" onClick={onBack} className="-ml-2">
+                    <ArrowLeftIcon className="h-6 w-6 text-on-surface" />
+                </IconButton>
+                <h2 className="text-xl font-bold text-on-surface flex-grow text-left ml-4">Set sync schedule</h2>
+            </header>
+            <main className="flex-grow overflow-y-auto p-4 pt-0 bg-bg">
+                <div className="bg-surface rounded-2xl shadow-sm">
+                    {SYNC_SCHEDULE_OPTIONS.map((option, index) => (
+                        <React.Fragment key={option}>
+                             {index > 0 && <div className="border-t border-outline mx-4"></div>}
+                            <SyncScheduleRadioOption
+                                label={option}
+                                isSelected={currentSchedule === option}
+                                onClick={() => handleSelect(option)}
+                            />
+                        </React.Fragment>
+                    ))}
+                </div>
+            </main>
+        </>
+    );
+};
+
 
 // --- Security Options Screen ---
 const SecurityOptionsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
@@ -687,12 +843,12 @@ const SecurityOptionsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => 
         <IconButton label="Back" onClick={onBack} className="-ml-2">
           <ArrowLeftIcon className="h-6 w-6 text-on-surface" />
         </IconButton>
-        <h2 className="text-xl font-bold text-on-surface flex-grow text-center">Security options</h2>
+        <h2 className="text-xl font-bold text-on-surface flex-grow text-center">Encryption options</h2>
         <div className="w-10"></div>
       </header>
       <main className="flex-grow overflow-y-auto p-4 pb-8 space-y-6">
         <div className="space-y-2">
-          <SettingsSection title="Security options" />
+          <SettingsSection title="Encryption options" />
           <SettingsCard>
             <SettingsItem
               title="Encrypt outgoing emails"
@@ -962,10 +1118,16 @@ const AccountSettingsScreen: React.FC<{
     onOpenAccountModal: () => void;
     onOpenOutOfOfficeModal: () => void;
     onEmptyRecycleBin: () => void;
+    signature: string;
+    onOpenSignatureModal: () => void;
+    isSignatureEnabled: boolean;
+    onToggleSignature: (enabled: boolean) => void;
+    syncScheduleValue: string;
 }> = ({ 
     onBack, onNavigate, emailSyncPeriod, retrievalSize, roamingRetrievalSize, 
     calendarSyncPeriod, onSelectCalendarPeriod, accountName, accountColor, onOpenAccountModal,
-    onOpenOutOfOfficeModal, onEmptyRecycleBin
+    onOpenOutOfOfficeModal, onEmptyRecycleBin, signature, onOpenSignatureModal,
+    isSignatureEnabled, onToggleSignature, syncScheduleValue
 }) => {
   const { accounts } = useContext(AppContext);
   const currentAccount = accounts[0];
@@ -974,7 +1136,6 @@ const AccountSettingsScreen: React.FC<{
   const [syncCalendars, setSyncCalendars] = useState(false);
   const [syncTasks, setSyncTasks] = useState(false);
   const [syncContacts, setSyncContacts] = useState(false);
-  const [signature, setSignature] = useState(false);
   const [showImages, setShowImages] = useState(true);
   const [autoDownload, setAutoDownload] = useState(false);
   
@@ -1013,7 +1174,7 @@ const AccountSettingsScreen: React.FC<{
             </SettingsCard>
         </div>
         <SettingsCard>
-            <SettingsItem title="Email sync schedule" value="Auto (when received)" onClick={() => onNavigate('syncSchedule')} />
+            <SettingsItem title="Email sync schedule" value={syncScheduleValue} onClick={() => onNavigate('syncSchedule')} />
             <div className="border-t border-outline mx-4"></div>
             <SettingsItem title="Email folders to sync" onClick={() => onNavigate('emailFoldersToSync')} />
             <div className="border-t border-outline mx-4"></div>
@@ -1088,7 +1249,13 @@ const AccountSettingsScreen: React.FC<{
                   <SettingsItem title="Always Cc/Bcc myself" value={alwaysCcBcc} onClick={() => setIsCcBccOpen(p => !p)} />
                 </div>
                 <div className="border-t border-outline mx-4"></div>
-                <SettingsItem title="Signature" description="Sent from my Galaxy" hasToggle isToggleOn={signature} onToggle={setSignature} />
+                <div className="flex items-center w-full px-4 py-3">
+                    <button onClick={onOpenSignatureModal} className="flex-grow text-left disabled:opacity-50" disabled={!isSignatureEnabled}>
+                        <p className="font-medium text-on-surface">Signature</p>
+                        <p className="text-sm text-on-surface-variant">{isSignatureEnabled ? (signature || 'Not set') : 'Off'}</p>
+                    </button>
+                    <ToggleSwitch checked={isSignatureEnabled} onChange={onToggleSignature} label="Enable signature" />
+                </div>
                 <div className="border-t border-outline mx-4"></div>
                 <SettingsItem title="Show images" description="Show all images in emails." hasToggle isToggleOn={showImages} onToggle={setShowImages} />
                 <div className="border-t border-outline mx-4"></div>
@@ -1102,7 +1269,7 @@ const AccountSettingsScreen: React.FC<{
         <div className="space-y-2">
             <SettingsSection title="Advanced settings" />
             <SettingsCard>
-                <SettingsItem title="Security options" onClick={() => onNavigate('securityOptions')} />
+                <SettingsItem title="Encryption options" onClick={() => onNavigate('securityOptions')} />
                 <div className="border-t border-outline mx-4"></div>
                 <SettingsItem title="Exchange server settings" onClick={() => onNavigate('exchangeServerSettings')} />
             </SettingsCard>
@@ -1286,8 +1453,6 @@ const OpenSourceLicencesScreen: React.FC<{ onBack: () => void; }> = ({ onBack })
 // --- New: Contact Us Screen Component ---
 const HELP_ITEMS = [
     { icon: QuestionMarkCircleIcon, title: 'FAQ' },
-    { icon: ChatBubbleLeftIcon, title: 'Text chat' },
-    { icon: HeadphonesIcon, title: 'Remote Management' },
     { icon: PaperAirplaneIcon, title: 'Send feedback' },
     { icon: UsersIcon, title: 'Community' },
 ];
@@ -1353,6 +1518,31 @@ const ContactUsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     );
 };
 
+const QuotaMeter: React.FC<{ used: number; total: number; }> = ({ used, total }) => {
+    const usedPercentage = (used / total) * 100;
+    return (
+        <div className="space-y-2">
+            <SettingsSection title="Monthly Quota" />
+            <SettingsCard className="p-4">
+                <div className="flex justify-between items-center mb-1">
+                    <p className="text-sm font-medium text-on-surface-variant">
+                        <span className="font-bold text-on-surface text-base">{used}</span> / {total} used
+                    </p>
+                    <button className="text-sm font-semibold text-accent">Upgrade</button>
+                </div>
+                <div className="w-full bg-surface-alt rounded-full h-2 dark:bg-zinc-700">
+                    <div 
+                        className="bg-primary h-2 rounded-full" 
+                        style={{ width: `${usedPercentage}%` }}
+                    ></div>
+                </div>
+                <p className="text-xs text-on-surface-variant mt-2">Resets monthly</p>
+            </SettingsCard>
+        </div>
+    );
+};
+
+
 // --- New: Copilot Settings Screen Component ---
 const CopilotSettingsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     const [chatAssistant, setChatAssistant] = useState(true);
@@ -1361,6 +1551,8 @@ const CopilotSettingsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => 
     const [composeReply, setComposeReply] = useState(true);
     const [summarizeEmails, setSummarizeEmails] = useState(true);
     const [helpImprove, setHelpImprove] = useState(true);
+    const usedQuota = 5;
+    const totalQuota = 100;
 
     const SettingsItem: React.FC<SettingsItemProps> = ({ 
       title, description, value, hasToggle, isToggleOn, onToggle, onClick, icon
@@ -1394,6 +1586,7 @@ const CopilotSettingsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => 
                 <h2 className="text-xl font-bold text-on-surface flex-grow text-center pr-8">Copilot</h2>
             </header>
             <main className="flex-grow overflow-y-auto p-4 pb-8 space-y-6 bg-bg dark:bg-zinc-900">
+                <QuotaMeter used={usedQuota} total={totalQuota} />
                 <SettingsCard>
                     <SettingsItem
                         title="Chat Assistant (Beta)"
@@ -1873,6 +2066,365 @@ const CustomizeTimesScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 };
 
 
+// --- New: Security Screen ---
+const SecurityScreen: React.FC<{ onBack: () => void; onNavigate: (view: keyof typeof views) => void }> = ({ onBack, onNavigate }) => {
+    const [loadRemoteContent, setLoadRemoteContent] = useState(true);
+    const [analytics, setAnalytics] = useState(true);
+    const [pgpEnabled, setPgpEnabled] = useState(true);
+    const [pgpEncryptDefault, setPgpEncryptDefault] = useState(true);
+    const [pgpSignDefault, setPgpSignDefault] = useState(true);
+    const [secureSendEnabled, setSecureSendEnabled] = useState(true);
+    const [secureSendEncryptDefault, setSecureSendEncryptDefault] = useState(false);
+    
+    const [preferredEncryption, setPreferredEncryption] = useState('Last Used');
+
+    return (
+        <>
+            <header className="bg-surface flex items-center p-4 border-b border-outline shrink-0">
+                <IconButton label="Back" onClick={onBack} className="-ml-2">
+                    <ArrowLeftIcon className="h-6 w-6 text-on-surface" />
+                </IconButton>
+                <h2 className="text-xl font-bold text-on-surface flex-grow text-center pr-8">Security</h2>
+            </header>
+            <main className="flex-grow overflow-y-auto p-4 pb-8 space-y-6 bg-surface-alt dark:bg-zinc-900">
+                <div className="space-y-2">
+                    <SettingsSection title="General" />
+                    <SettingsCard>
+                        <SettingsItem 
+                            title="Protect App Access" 
+                            description="Secure Canary with a passcode." 
+                            onClick={() => onNavigate('protectAppAccess')}
+                        />
+                        <div className="border-t border-outline mx-4"></div>
+                        <SettingsItem 
+                            title="Load Remote Content" 
+                            hasToggle 
+                            isToggleOn={loadRemoteContent} 
+                            onToggle={setLoadRemoteContent} 
+                        />
+                        <div className="border-t border-outline mx-4"></div>
+                        <SettingsItem 
+                            title="Analytics" 
+                            description="Share anonymized usage and crash data to help guide app development." 
+                            hasToggle 
+                            isToggleOn={analytics} 
+                            onToggle={setAnalytics} 
+                        />
+                    </SettingsCard>
+                </div>
+
+                <div className="space-y-2">
+                    <SettingsSection title="Encryption" />
+                    <SettingsCard>
+                        <SettingsItem 
+                            title="Preferred Encryption Option" 
+                            value={preferredEncryption} 
+                            onClick={() => alert('Change Preferred Encryption Option')}
+                        />
+                    </SettingsCard>
+                </div>
+
+                <div className="space-y-2">
+                    <SettingsSection title="PGP" />
+                    <SettingsCard>
+                        <SettingsItem 
+                            title="Enabled" 
+                            hasToggle 
+                            isToggleOn={pgpEnabled} 
+                            onToggle={setPgpEnabled} 
+                        />
+                        <div className="border-t border-outline mx-4"></div>
+                        <SettingsItem 
+                            title="Encrypt by Default" 
+                            hasToggle 
+                            isToggleOn={pgpEncryptDefault} 
+                            onToggle={setPgpEncryptDefault} 
+                        />
+                        <div className="border-t border-outline mx-4"></div>
+                        <SettingsItem 
+                            title="Sign by Default" 
+                            hasToggle 
+                            isToggleOn={pgpSignDefault} 
+                            onToggle={setPgpSignDefault} 
+                        />
+                        <div className="border-t border-outline mx-4"></div>
+                        <SettingsItem 
+                            title="Manage Keys" 
+                            onClick={() => alert('Manage Keys clicked')}
+                        />
+                    </SettingsCard>
+                </div>
+
+                <div className="space-y-2">
+                    <SettingsSection title="SecureSend" />
+                    <SettingsCard>
+                        <SettingsItem 
+                            title="Enabled" 
+                            hasToggle 
+                            isToggleOn={secureSendEnabled} 
+                            onToggle={setSecureSendEnabled} 
+                        />
+                        <div className="border-t border-outline mx-4"></div>
+                        <SettingsItem 
+                            title="Encrypt by Default" 
+                            hasToggle 
+                            isToggleOn={secureSendEncryptDefault} 
+                            onToggle={setSecureSendEncryptDefault} 
+                        />
+                    </SettingsCard>
+                </div>
+            </main>
+        </>
+    );
+};
+
+
+// --- New: Passcode Modal ---
+const PasscodeModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: (passcode: string) => void;
+}> = ({ isOpen, onClose, onSuccess }) => {
+  type Stage = 'enter' | 'confirm' | 'mismatch';
+  const [stage, setStage] = useState<Stage>('enter');
+  const [firstPasscode, setFirstPasscode] = useState('');
+  const [currentPasscode, setCurrentPasscode] = useState('');
+  const mismatchTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    // Reset state when modal is opened or closed
+    if (isOpen) {
+      setStage('enter');
+      setFirstPasscode('');
+      setCurrentPasscode('');
+    }
+    return () => {
+        if (mismatchTimeoutRef.current) {
+            clearTimeout(mismatchTimeoutRef.current);
+        }
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (currentPasscode.length === 4) {
+      if (stage === 'enter') {
+        setFirstPasscode(currentPasscode);
+        setCurrentPasscode('');
+        setStage('confirm');
+      } else if (stage === 'confirm') {
+        if (currentPasscode === firstPasscode) {
+          onSuccess(currentPasscode);
+        } else {
+          setStage('mismatch');
+          mismatchTimeoutRef.current = window.setTimeout(() => {
+            setStage('enter');
+            setFirstPasscode('');
+            setCurrentPasscode('');
+          }, 1000);
+        }
+      }
+    }
+  }, [currentPasscode, stage, firstPasscode, onSuccess]);
+
+  if (!isOpen) {
+    return null;
+  }
+  
+  const handleKeyClick = (key: string) => {
+    if (stage === 'mismatch' || currentPasscode.length >= 4) return;
+    setCurrentPasscode(currentPasscode + key);
+  };
+
+  const handleBackspace = () => {
+    if (stage === 'mismatch') return;
+    setCurrentPasscode(currentPasscode.slice(0, -1));
+  };
+  
+  const getTitle = () => {
+    switch(stage) {
+      case 'enter': return 'Enter a new passcode';
+      case 'confirm': return 'Confirm your new passcode';
+      case 'mismatch': return "Passcodes don't match";
+    }
+  };
+
+  const PasscodeDots: React.FC = () => (
+    <div className="flex justify-center space-x-4 my-8">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className={`w-4 h-4 rounded-full transition-all duration-200 ${stage === 'mismatch' ? 'bg-error/50 animate-shake' : ''} ${i < currentPasscode.length ? 'bg-on-surface' : 'bg-outline'}`} />
+      ))}
+       <style>{`
+        @keyframes shake {
+          10%, 90% { transform: translate3d(-1px, 0, 0); }
+          20%, 80% { transform: translate3d(2px, 0, 0); }
+          30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+          40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .animate-shake { animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both; }
+      `}</style>
+    </div>
+  );
+
+  const KeypadButton: React.FC<{ value: string, onClick: (val: string) => void }> = ({ value, onClick }) => (
+    <button onClick={() => onClick(value)} className="h-20 w-20 rounded-full bg-surface-alt flex items-center justify-center text-3xl font-light text-on-surface hover:bg-outline/50 transition-colors">
+      {value}
+    </button>
+  );
+
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 bg-bg z-[60] flex flex-col">
+      <header className="flex items-center justify-end p-4 shrink-0">
+        <button onClick={onClose} className="font-semibold text-accent">Cancel</button>
+      </header>
+      <main className="flex-grow flex flex-col items-center justify-center px-4 pb-16">
+        <h2 className={`text-xl font-medium text-on-surface transition-colors ${stage === 'mismatch' ? 'text-error' : ''}`}>{getTitle()}</h2>
+        <PasscodeDots />
+      </main>
+      <footer className="shrink-0 grid grid-cols-3 gap-4 p-4 justify-items-center">
+        {'123456789'.split('').map(key => <KeypadButton key={key} value={key} onClick={handleKeyClick} />)}
+        <div /> {/* Spacer */}
+        <KeypadButton value="0" onClick={handleKeyClick} />
+        <button onClick={handleBackspace} className="h-20 w-20 flex items-center justify-center">
+          <BackspaceIcon className="h-8 w-8 text-on-surface" />
+        </button>
+      </footer>
+    </div>,
+    document.body
+  );
+};
+
+// --- New: Check Frequency Modal ---
+const FREQUENCY_OPTIONS = ['Never', 'Always', 'After 15 Minutes', 'After 30 Minutes', 'After 1 Hour'];
+
+const CheckFrequencyModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  currentValue: string;
+  onSelect: (value: string) => void;
+}> = ({ isOpen, onClose, currentValue, onSelect }) => {
+  if (!isOpen) {
+    return null;
+  }
+
+  const handleSelect = (value: string) => {
+    onSelect(value);
+  };
+
+  const RadioOption: React.FC<{ label: string; isSelected: boolean; onClick: () => void; }> = ({ label, isSelected, onClick }) => (
+    <button onClick={onClick} className="w-full flex items-center py-4 text-left px-6">
+        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-8 shrink-0 transition-colors ${isSelected ? 'border-primary' : 'border-on-surface-variant/50'}`}>
+            {isSelected && <div className="w-3 h-3 rounded-full bg-primary" />}
+        </div>
+        <span className="font-medium text-on-surface text-base">{label}</span>
+    </button>
+  );
+
+  return ReactDOM.createPortal(
+    <div 
+        className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-4" 
+        onClick={onClose}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="frequency-modal-title"
+    >
+        <div className="bg-surface rounded-3xl shadow-2xl w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 pb-2">
+                <h2 id="frequency-modal-title" className="text-xl font-semibold text-on-surface mb-4">Check Frequency</h2>
+                <ul className="-mx-6">
+                    {FREQUENCY_OPTIONS.map((option) => (
+                        <li key={option}>
+                            <RadioOption
+                                label={option}
+                                isSelected={currentValue === option}
+                                onClick={() => handleSelect(option)}
+                            />
+                        </li>
+                    ))}
+                </ul>
+            </div>
+            <div className="flex justify-end p-4 pt-2">
+                 <button onClick={onClose} className="px-5 py-2.5 rounded-full text-sm font-semibold text-primary hover:bg-primary/10">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>,
+    document.body
+  );
+};
+
+
+// --- New: Protect App Access Screen ---
+const ProtectAppAccessScreen: React.FC<{
+    onBack: () => void;
+    isProtectionOn: boolean;
+    onToggleProtection: (isOn: boolean) => void;
+}> = ({ onBack, isProtectionOn, onToggleProtection }) => {
+    const [useBiometrics, setUseBiometrics] = useState(false);
+    const [checkFrequency, setCheckFrequency] = useState('Never');
+    const [isFrequencyModalOpen, setIsFrequencyModalOpen] = useState(false);
+
+    useEffect(() => {
+        // When protection is turned off externally (e.g., by parent), disable biometrics too.
+        if (!isProtectionOn) {
+            setUseBiometrics(false);
+        }
+    }, [isProtectionOn]);
+    
+    return (
+        <>
+            <header className="bg-surface flex items-center p-4 shrink-0">
+                <IconButton label="Back" onClick={onBack} className="-ml-2">
+                    <ArrowLeftIcon className="h-6 w-6 text-on-surface" />
+                </IconButton>
+            </header>
+            <main className="flex-grow overflow-y-auto px-4 py-2 pb-8 space-y-4 bg-bg dark:bg-zinc-900">
+                <h1 className="text-4xl font-bold text-on-surface px-4 mb-8 mt-4">Protect App Access</h1>
+                
+                <div className="space-y-2">
+                    <SettingsSection title="Protect App Access" />
+                    <SettingsCard>
+                        <SettingsItem
+                            title="Protect App Access"
+                            hasToggle
+                            isToggleOn={isProtectionOn}
+                            onToggle={onToggleProtection}
+                        />
+                        <div className="border-t border-outline mx-4"></div>
+                        <SettingsItem
+                            title="Use Biometrics"
+                            description="Use Face ID or Touch ID to unlock"
+                            hasToggle
+                            isToggleOn={useBiometrics}
+                            onToggle={setUseBiometrics}
+                            disabled={!isProtectionOn}
+                        />
+                        <div className="border-t border-outline mx-4"></div>
+                        <SettingsItem
+                            title="Check Frequency"
+                            description={checkFrequency}
+                            onClick={isProtectionOn ? () => setIsFrequencyModalOpen(true) : undefined}
+                            disabled={!isProtectionOn}
+                        />
+                    </SettingsCard>
+                </div>
+                <p className="px-4 pt-2 text-sm text-on-surface-variant">
+                    You can always use a device password in case Biometric auth fails.
+                </p>
+            </main>
+            <CheckFrequencyModal
+                isOpen={isFrequencyModalOpen}
+                onClose={() => setIsFrequencyModalOpen(false)}
+                currentValue={checkFrequency}
+                onSelect={(value) => {
+                    setCheckFrequency(value);
+                    setIsFrequencyModalOpen(false);
+                }}
+            />
+        </>
+    );
+};
+
 // --- Main Settings Modal Component ---
 
 const views = {
@@ -1883,6 +2435,7 @@ const views = {
     swipeActions: 'swipeActions',
     editSwipeAction: 'editSwipeAction',
     syncSchedule: 'syncSchedule',
+    setSyncSchedule: 'setSyncSchedule',
     emailFoldersToSync: 'emailFoldersToSync',
     emailSyncPeriod: 'emailSyncPeriod',
     limitRetrievalSize: 'limitRetrievalSize',
@@ -1899,6 +2452,8 @@ const views = {
     notifications: 'notifications',
     threadActions: 'threadActions',
     customizeTimes: 'customizeTimes',
+    security: 'security',
+    protectAppAccess: 'protectAppAccess',
 };
 
 const RETRIEVAL_SIZE_OPTIONS = ['Headers only', '0.5 KB', '1 KB', '2 KB', '5 KB', '10 KB', '20 KB', '50 KB', '100 KB', 'No limit'];
@@ -1912,12 +2467,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const [retrievalSize, setRetrievalSize] = useState('No limit');
   const [roamingRetrievalSize, setRoamingRetrievalSize] = useState('2 KB');
   const [calendarSyncPeriod, setCalendarSyncPeriod] = useState('6 months');
+  const [syncScheduleValue, setSyncScheduleValue] = useState('Auto (when received)');
   
   const [accountName, setAccountName] = useState(currentAccount.email);
   const [accountColor, setAccountColor] = useState('#f97316'); // Matching screenshot's selected color
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isOutOfOfficeOpen, setIsOutOfOfficeOpen] = useState(false);
   const [showEmptyBinConfirm, setShowEmptyBinConfirm] = useState(false);
+  const [signature, setSignature] = useState('Sent from my Galaxy');
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+  const [isSignatureEnabled, setIsSignatureEnabled] = useState(true);
 
   // Swipe actions state
   const [swipeLeftActions, setSwipeLeftActions] = useState<SwipeActionItem[]>([{ id: 'delete', name: 'Delete' }]);
@@ -1951,11 +2510,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const [isDarkModePopupOpen, setIsDarkModePopupOpen] = useState(false);
   const darkModeItemRef = useRef<HTMLDivElement>(null);
 
+  const [previewLines, setPreviewLines] = useState('2 lines');
+  const [isPreviewLinesPopupOpen, setIsPreviewLinesPopupOpen] = useState(false);
+  const previewLinesItemRef = useRef<HTMLDivElement>(null);
+
   // State for the "App icon badge counts" popup
   const [badgeCountOption, setBadgeCountOption] = useState('New emails');
   const [isBadgeCountPopupOpen, setIsBadgeCountPopupOpen] = useState(false);
   const badgeCountItemRef = useRef<HTMLDivElement>(null);
   
+  // State for app protection
+  const [passcode, setPasscode] = useState<string | null>(null);
+  const [isPasscodeModalOpen, setIsPasscodeModalOpen] = useState(false);
+
   useEffect(() => {
     if (isOpen) {
         setView(initialSettingsView as keyof typeof views || 'main');
@@ -2003,7 +2570,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         setThreadActions(prev => ({...prev, [editingThreadAction.key]: value}));
     }
   };
-
+  
+  const handleToggleProtection = (isOn: boolean) => {
+    if (isOn) {
+      // User wants to turn it on, so open the modal to set a new passcode.
+      setIsPasscodeModalOpen(true);
+    } else {
+      // User wants to turn it off. For this implementation, we just clear it.
+      // A real app would ask for the current passcode to confirm.
+      setPasscode(null);
+    }
+  };
 
   if (!isOpen) {
     return null;
@@ -2044,9 +2621,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                         onOpenAccountModal={() => setIsAccountModalOpen(true)}
                         onOpenOutOfOfficeModal={() => setIsOutOfOfficeOpen(true)}
                         onEmptyRecycleBin={() => setShowEmptyBinConfirm(true)}
+                        signature={signature}
+                        onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
+                        isSignatureEnabled={isSignatureEnabled}
+                        onToggleSignature={setIsSignatureEnabled}
+                        syncScheduleValue={syncScheduleValue}
                     />;
         case 'syncSchedule':
-            return <SyncScheduleScreen onBack={() => setView('account')} />;
+            return <SyncScheduleScreen
+                onBack={() => setView('account')}
+                onNavigate={setView}
+                syncScheduleValue={syncScheduleValue}
+            />;
+        case 'setSyncSchedule':
+            return <SetSyncScheduleScreen
+                onBack={() => setView('syncSchedule')}
+                currentSchedule={syncScheduleValue}
+                onSelectSchedule={setSyncScheduleValue}
+            />;
         case 'emailFoldersToSync':
             return <EmailFoldersToSyncScreen onBack={() => setView('account')} />;
         case 'emailSyncPeriod':
@@ -2075,6 +2667,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             return <TranslatorScreen onBack={() => setView('main')} />;
         case 'permissions':
             return <PermissionsScreen onBack={() => setView('main')} />;
+        case 'security':
+            return <SecurityScreen onBack={() => setView('main')} onNavigate={setView} />;
+        case 'protectAppAccess':
+            return <ProtectAppAccessScreen 
+                        onBack={() => setView('security')} 
+                        isProtectionOn={passcode !== null}
+                        onToggleProtection={handleToggleProtection}
+                    />;
         case 'aboutEmail':
             return <AboutEmailScreen onBack={handleClose} onNavigate={setView} />;
         case 'openSourceLicences':
@@ -2144,6 +2744,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                 <SettingsItem title="Dark mode" value={darkModeOption} onClick={() => setIsDarkModePopupOpen(true)} />
                             </div>
                             <div className="border-t border-outline mx-4"></div>
+                             <div ref={previewLinesItemRef}>
+                                <SettingsItem title="Preview Lines" value={previewLines} onClick={() => setIsPreviewLinesPopupOpen(true)} />
+                            </div>
+                            <div className="border-t border-outline mx-4"></div>
                             <SettingsItem 
                                 title="Swipe actions" 
                                 description="Choose what happens when you swipe left or right on your email list." 
@@ -2182,6 +2786,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                         <SettingsSection title="Privacy" />
                         <SettingsCard>
                             <SettingsItem title="Permissions" onClick={() => setView('permissions')} />
+                            <div className="border-t border-outline mx-4"></div>
+                            <SettingsItem title="Security" onClick={() => setView('security')} />
                         </SettingsCard>
                         </div>
                         
@@ -2206,6 +2812,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             role="dialog"
         >
             {renderContent()}
+
+            <SignatureModal
+                isOpen={isSignatureModalOpen}
+                onClose={() => setIsSignatureModalOpen(false)}
+                signature={signature}
+                onSave={setSignature}
+            />
 
             <AccountNameColorModal
                 isOpen={isAccountModalOpen}
@@ -2239,6 +2852,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 }}
             />
 
+            <PreviewLinesPopup
+                isOpen={isPreviewLinesPopupOpen}
+                onClose={() => setIsPreviewLinesPopupOpen(false)}
+                targetRef={previewLinesItemRef}
+                options={['None', '1 line', '2 lines', '3 lines']}
+                selectedValue={previewLines}
+                onSelect={(value) => {
+                    setPreviewLines(value);
+                    setIsPreviewLinesPopupOpen(false);
+                }}
+            />
+
             <BadgeCountPopup
                 isOpen={isBadgeCountPopupOpen}
                 onClose={() => setIsBadgeCountPopupOpen(false)}
@@ -2258,6 +2883,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 options={THREAD_ACTION_OPTIONS}
                 selectedValue={editingThreadAction ? threadActions[editingThreadAction.key] : ''}
                 onSelect={handleThreadActionSelect}
+            />
+
+            <PasscodeModal
+                isOpen={isPasscodeModalOpen}
+                onClose={() => setIsPasscodeModalOpen(false)}
+                onSuccess={(newPasscode) => {
+                    setPasscode(newPasscode);
+                    setIsPasscodeModalOpen(false);
+                }}
             />
 
             {showEmptyBinConfirm && ReactDOM.createPortal(

@@ -10,8 +10,6 @@ import {
     PaperAirplaneIcon,
     TrashIcon,
     DocumentTextIcon,
-    ArrowUturnRightIcon,
-    ReplyAllIcon,
     PaperClipIcon,
     SparklesIcon,
     PinIcon,
@@ -32,6 +30,13 @@ import { SnoozeModal } from '../SnoozeModal';
 interface MessageDetailPaneProps {
   message: Message | null;
 }
+
+const ActionButton: React.FC<{icon: React.ElementType; label: string; onClick?: () => void;}> = ({ icon: Icon, label, onClick }) => (
+    <button onClick={onClick} className="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors w-20 py-1">
+        <Icon className="h-6 w-6 mb-1" />
+        <span className="text-xs font-medium">{label}</span>
+    </button>
+);
 
 const formatDetailTimestamp = (date: Date) => {
     return new Intl.DateTimeFormat('en-GB', {
@@ -161,6 +166,31 @@ export const MessageDetailPane: React.FC<MessageDetailPaneProps> = ({ message })
         .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()) // Sort oldest to newest for chronological flow
     : [], [isThread, message, messages]);
 
+    const menuItems = useMemo(() => {
+        const threadCount = isThread ? (threadMessages.length || message?.threadCount || 1) : 1;
+        const baseItems = [
+          { label: `Thread (${threadCount})` },
+          { label: 'Mark as spam' },
+          { label: 'Mark as unread' },
+          { label: 'Add to VIPs' },
+          { label: 'Translate email to English' },
+          { label: 'Set due date' },
+          { label: 'Move' },
+          { label: 'Print' },
+          { label: 'Save email as file' },
+          { label: 'Create event' },
+        ];
+
+        if (layout === 'one-pane') {
+            return [
+                { label: 'Reply all' },
+                { label: 'Forward' },
+                ...baseItems,
+            ];
+        }
+        return baseItems;
+    }, [isThread, threadMessages, message, layout]);
+
   const handleSummarize = async () => {
     if (!message) return;
 
@@ -211,16 +241,14 @@ export const MessageDetailPane: React.FC<MessageDetailPaneProps> = ({ message })
     return <div className="hidden md:flex items-center justify-center h-full bg-surface-alt text-on-surface-variant"><p>Select a message to read</p></div>;
   }
 
-  const menuItems = [
-    { label: 'Delete', icon: TrashIcon },
-    { label: 'Move', icon: MoveIcon },
-    { label: 'Star', icon: StarIcon },
-    { label: 'Unsubscribe', icon: EnvelopeXMarkIcon },
-    { label: 'Spam', icon: ExclamationTriangleIcon },
-  ];
-
   const handleMenuItemClick = (item: string) => {
-    alert(`${item} clicked`);
+    if (item === 'Reply all') {
+        handleReplyAction('reply-all');
+    } else if (item === 'Forward') {
+        handleReplyAction('forward');
+    } else {
+        alert(`${item} clicked`);
+    }
     setIsMoreMenuOpen(false);
   };
 
@@ -241,27 +269,33 @@ export const MessageDetailPane: React.FC<MessageDetailPaneProps> = ({ message })
             )}
         </div>
         <div className="flex items-center space-x-1 shrink-0 ml-2">
-            <IconButton label="Pin"><PinIcon className="h-6 w-6" /></IconButton>
-            <IconButton label="Snooze" onClick={() => setIsSnoozeModalOpen(true)}><ClockIcon className="h-6 w-6" /></IconButton>
-            <IconButton label="Archive"><ArchiveBoxIcon className="h-6 w-6" /></IconButton>
-            <IconButton label="Reply" onClick={() => handleReplyAction('reply')}><ArrowUturnLeftIcon className="h-6 w-6" /></IconButton>
-            <div className="relative">
-                <IconButton label="More options" onClick={() => setIsMoreMenuOpen(o => !o)}>
-                    <EllipsisVerticalIcon className="h-6 w-6" />
-                </IconButton>
-                <DropdownMenu
-                  isOpen={isMoreMenuOpen}
-                  onClose={() => setIsMoreMenuOpen(false)}
-                  position={layout === 'one-pane' ? 'popup' : 'right'}
-                  className={layout === 'one-pane' ? '' : '!w-56'}
-                >
-                  {menuItems.map(item => (
-                    <DropdownMenuItem key={item.label} icon={<item.icon className="h-5 w-5" />} onClick={() => handleMenuItemClick(item.label)}>
-                      {item.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenu>
-            </div>
+            {layout !== 'one-pane' ? (
+                <>
+                    <IconButton label="Pin"><PinIcon className="h-6 w-6" /></IconButton>
+                    <IconButton label="Snooze" onClick={() => setIsSnoozeModalOpen(true)}><ClockIcon className="h-6 w-6" /></IconButton>
+                    <IconButton label="Archive"><ArchiveBoxIcon className="h-6 w-6" /></IconButton>
+                    <IconButton label="Reply" onClick={() => handleReplyAction('reply')}><ArrowUturnLeftIcon className="h-6 w-6" /></IconButton>
+                    <div className="relative">
+                        <IconButton label="More options" onClick={() => setIsMoreMenuOpen(o => !o)}>
+                            <EllipsisVerticalIcon className="h-6 w-6" />
+                        </IconButton>
+                        <DropdownMenu
+                          isOpen={isMoreMenuOpen}
+                          onClose={() => setIsMoreMenuOpen(false)}
+                          position={'right'}
+                          className="!w-64"
+                        >
+                          {menuItems.map(item => (
+                            <DropdownMenuItem key={item.label} onClick={() => handleMenuItemClick(item.label)}>
+                              {item.label}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenu>
+                    </div>
+                </>
+            ) : (
+                 <IconButton label="Pin"><PinIcon className="h-6 w-6" /></IconButton>
+            )}
         </div>
       </header>
       
@@ -297,6 +331,29 @@ export const MessageDetailPane: React.FC<MessageDetailPaneProps> = ({ message })
           <SingleMessageContent message={message} />
         )}
       </div>
+       {layout === 'one-pane' && (
+        <footer className="shrink-0 bg-surface border-t border-outline flex items-center justify-around h-16">
+            <ActionButton icon={ArrowUturnLeftIcon} label="Reply" onClick={() => handleReplyAction('reply')} />
+            <ActionButton icon={ClockIcon} label="Snooze" onClick={() => setIsSnoozeModalOpen(true)} />
+            <ActionButton icon={ArchiveBoxIcon} label="Archive" onClick={() => alert('Archive clicked')} />
+            <ActionButton icon={TrashIcon} label="Delete" onClick={() => alert('Delete clicked')} />
+            <div className="relative">
+                <ActionButton icon={EllipsisVerticalIcon} label="More" onClick={() => setIsMoreMenuOpen(o => !o)} />
+                <DropdownMenu
+                  isOpen={isMoreMenuOpen}
+                  onClose={() => setIsMoreMenuOpen(false)}
+                  position={'bottom-right-up'}
+                  className="!w-64"
+                >
+                  {menuItems.map(item => (
+                    <DropdownMenuItem key={item.label} onClick={() => handleMenuItemClick(item.label)}>
+                      {item.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenu>
+            </div>
+        </footer>
+      )}
       <SnoozeModal 
         isOpen={isSnoozeModalOpen}
         onClose={() => setIsSnoozeModalOpen(false)}

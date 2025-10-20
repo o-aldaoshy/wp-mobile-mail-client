@@ -8,6 +8,7 @@ import { ComposeView } from './components/ComposeView';
 import { ReplyView } from './components/ReplyView';
 import { BottomNavBar } from './components/layout/BottomNavBar';
 import { MoveModal } from './components/MoveModal';
+import { AddFolderModal } from './components/AddFolderModal';
 import { ConfirmationModal } from './components/ConfirmationModal';
 import { AiModal } from './components/AiModal';
 import { SettingsModal } from './components/SettingsModal';
@@ -20,6 +21,7 @@ import { NameGroupView } from './components/NameGroupView';
 import { GroupChatView } from './components/GroupChatView';
 import { ChatListItem } from './components/ChatListItem';
 import { DriveView } from './components/DriveView';
+import { FilterModal } from './components/FilterModal';
 
 const ChatView: React.FC = () => {
     const { setCurrentView, setGroupChatInfo, groupChats } = useContext(AppContext);
@@ -255,9 +257,11 @@ const App: React.FC = () => {
           onClose={handleConfirmModalClose}
         />
       )}
-
+      
+      <AddFolderModal />
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+      <FilterModal />
     </div>
   );
 };

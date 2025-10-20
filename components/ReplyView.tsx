@@ -5,14 +5,19 @@ import {
     PaperClipIcon, 
     PaperAirplaneIcon, 
     EllipsisVerticalIcon, 
-    ChevronDownIcon, 
     CheckVIcon,
     EditIcon,
     ArrowUturnLeftIcon,
     ArrowUturnRightIcon,
     CameraIcon,
+    ClockIcon,
+    ChevronDownIcon,
+    SparklesIcon,
 } from './icons';
 import { IconButton } from './ui/IconButton';
+import { DropdownMenu, DropdownMenuItem } from './ui/Dropdown';
+import { ScheduleSendModal } from './ScheduleSendModal';
+import { GoogleGenAI } from '@google/genai';
 
 
 const RichTextToolbar: React.FC = () => (
@@ -40,41 +45,68 @@ export const ReplyView: React.FC = () => {
         setIsReplying,
         replyingToMessage,
         setReplyingToMessage,
-        replyType,
         setReplyType,
     } = useContext(AppContext);
 
-    const [showCcBcc, setShowCcBcc] = useState(false);
-    const [includeMe, setIncludeMe] = useState(false);
     const [includePreviousMessages, setIncludePreviousMessages] = useState(true);
+    const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+    const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+    
+    const [replyBody, setReplyBody] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
 
     const handleClose = () => {
         setIsReplying(false);
         setReplyingToMessage(null);
         setReplyType(null);
+        setReplyBody('');
     };
+
+    const handleScheduleSendClick = () => {
+        setIsMoreMenuOpen(false);
+        setIsScheduleModalOpen(true);
+    };
+
+    const handleGenerateReply = async () => {
+        if (!replyingToMessage || isGenerating) return;
+
+        setIsGenerating(true);
+        setReplyBody('Generating reply with AI...');
+
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+            
+            const plainTextBody = replyingToMessage.body.replace(/<[^>]*>?/gm, ' ').trim();
+
+            const prompt = `Based on the following email, write a short, professional reply:
+            
+            From: ${replyingToMessage.sender.name}
+            Subject: ${replyingToMessage.subject}
+            
+            --- Email Content ---
+            ${plainTextBody}
+            ---
+            
+            Draft a reply:`;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+            
+            setReplyBody(response.text);
+        } catch (error) {
+            console.error("Error generating AI reply:", error);
+            setReplyBody("Sorry, I couldn't generate a reply. Please try again.");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
 
     if (!isReplying || !replyingToMessage) {
         return null;
     }
-
-    const getRecipients = () => {
-        if (replyType === 'reply-all') {
-            const to = [replyingToMessage.sender.name, ...replyingToMessage.recipients.to.filter(r => r.toLowerCase() !== 'me' && r.toLowerCase() !== 'alex.j@example.com')];
-            return {
-                to: to.join(', '),
-                cc: replyingToMessage.recipients.cc?.join(', ') || ''
-            };
-        }
-        // 'reply' or 'forward'
-        return {
-            to: replyType === 'forward' ? '' : replyingToMessage.sender.name,
-            cc: ''
-        };
-    };
-
-    const recipients = getRecipients();
-    const subjectPrefix = replyType === 'forward' ? 'FW:' : 'RE:';
 
     return (
         <div className="fixed inset-0 bg-surface z-50 flex flex-col animate-slide-up">
@@ -84,55 +116,40 @@ export const ReplyView: React.FC = () => {
                     <XMarkIcon className="w-6 h-6" />
                 </IconButton>
                 <div className="flex-grow" />
+                <IconButton label="Generate AI reply" onClick={handleGenerateReply} disabled={isGenerating}>
+                    <SparklesIcon className={`w-6 h-6 ${isGenerating ? 'animate-pulse text-accent' : 'text-on-surface-variant'}`} />
+                </IconButton>
                 <IconButton label="Attach file"><PaperClipIcon className="w-6 h-6" /></IconButton>
+                <IconButton label="Schedule send" onClick={handleScheduleSendClick}><ClockIcon className="w-6 h-6" /></IconButton>
                 <IconButton label="Send"><PaperAirplaneIcon className="w-6 h-6" /></IconButton>
-                <IconButton label="More options"><EllipsisVerticalIcon className="w-6 h-6" /></IconButton>
+                <div className="relative">
+                    <IconButton label="More options" onClick={() => setIsMoreMenuOpen(o => !o)}>
+                        <EllipsisVerticalIcon className="w-6 h-6" />
+                    </IconButton>
+                    <DropdownMenu
+                        isOpen={isMoreMenuOpen}
+                        onClose={() => setIsMoreMenuOpen(false)}
+                        position="right"
+                        className="!w-56"
+                    >
+                        <DropdownMenuItem onClick={() => alert('Save in Drafts clicked')}>Save in Drafts</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => alert('Priority clicked')}>Priority</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => alert('Security options clicked')}>Security options</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => alert('Turn off Rich text clicked')}>Turn off Rich text</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => alert('Permission clicked')}>Permission</DropdownMenuItem>
+                    </DropdownMenu>
+                </div>
             </header>
 
             {/* Main Content */}
             <div className="flex-grow overflow-y-auto px-4">
-                {/* Recipients */}
-                <div className="py-2 border-b border-outline">
-                    <div className="flex items-center">
-                        <span className="text-on-surface-variant w-12">To</span>
-                        <span className="flex-grow text-on-surface">{recipients.to}</span>
-                         <IconButton label="Show Cc/Bcc" onClick={() => setShowCcBcc(s => !s)}>
-                            <ChevronDownIcon className={`w-5 h-5 transition-transform ${showCcBcc ? 'rotate-180' : ''}`} />
-                        </IconButton>
-                    </div>
-                    {showCcBcc && (
-                         <>
-                            <div className="flex items-center mt-2 border-t border-outline pt-2">
-                                <span className="text-on-surface-variant w-12">Cc</span>
-                                <input type="text" className="bg-transparent w-full outline-none" defaultValue={recipients.cc} />
-                            </div>
-                            <div className="flex items-center mt-2 border-t border-outline pt-2">
-                                <span className="text-on-surface-variant w-12">Bcc</span>
-                                <input type="text" className="bg-transparent w-full outline-none" />
-                            </div>
-                        </>
-                    )}
-                </div>
-                 <div className="py-3 border-b border-outline flex items-center">
-                    <button
-                        onClick={() => setIncludeMe(v => !v)}
-                        className="w-5 h-5 rounded-full border-2 border-gray-400 flex items-center justify-center mr-3 shrink-0"
-                        aria-pressed={includeMe}
-                    >
-                    </button>
-                    <span className="text-on-surface">Include me as a recipient</span>
-                </div>
-
-                {/* Subject */}
-                <div className="py-3 border-b border-outline">
-                    <p className="text-on-surface">{subjectPrefix} {replyingToMessage.subject}</p>
-                </div>
-
                 {/* Compose Area */}
                 <div className="py-2">
                     <textarea
                         placeholder="Write email"
                         className="w-full h-24 bg-transparent outline-none resize-none text-on-surface"
+                        value={replyBody}
+                        onChange={(e) => setReplyBody(e.target.value)}
                     />
                 </div>
 
@@ -151,7 +168,7 @@ export const ReplyView: React.FC = () => {
 
                 {/* Quoted Message */}
                 {includePreviousMessages && (
-                    <div className="py-3 text-sm text-on-surface-variant">
+                    <div className="py-3 text-sm text-on-surface-variant border-t border-outline/70 mt-2">
                         <p>------ Original message ------</p>
                         <p>From: {replyingToMessage.sender.name} &lt;{replyingToMessage.sender.email}&gt;</p>
                         <p>Date: {replyingToMessage.timestamp.toLocaleString()}</p>
@@ -164,6 +181,10 @@ export const ReplyView: React.FC = () => {
             </div>
             
             <RichTextToolbar />
+            <ScheduleSendModal
+                isOpen={isScheduleModalOpen}
+                onClose={() => setIsScheduleModalOpen(false)}
+            />
         </div>
     );
 };

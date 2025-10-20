@@ -1,5 +1,5 @@
 import React, { createContext, useState, ReactNode, useCallback, useEffect } from 'react';
-import { Account, Folder, Message, ReplyType, Theme, GroupChat } from '../types';
+import { Account, Folder, Message, ReplyType, Theme, GroupChat, ActiveFilters, SortOrder } from '../types';
 import { ACCOUNTS, FOLDERS, MESSAGES, INITIAL_GROUP_CHATS } from '../constants';
 
 interface ConfirmationModalConfig {
@@ -13,6 +13,7 @@ export type AppView = 'mail' | 'ai' | 'chatList' | 'groupSelectMembers' | 'group
 interface AppContextType {
   accounts: Account[];
   folders: Folder[];
+  setFolders: React.Dispatch<React.SetStateAction<Folder[]>>;
   messages: Message[];
   selectedFolder: Folder | null;
   setSelectedFolder: (folder: Folder) => void;
@@ -34,6 +35,8 @@ interface AppContextType {
   clearSelection: () => void;
   isMoveModalOpen: boolean;
   setIsMoveModalOpen: (isOpen: boolean) => void;
+  isAddFolderModalOpen: boolean;
+  setIsAddFolderModalOpen: (isOpen: boolean) => void;
   confirmationModalConfig: ConfirmationModalConfig | null;
   setConfirmationModalConfig: (config: ConfirmationModalConfig | null) => void;
   theme: Theme;
@@ -52,13 +55,19 @@ interface AppContextType {
   groupChats: GroupChat[];
   setGroupChats: React.Dispatch<React.SetStateAction<GroupChat[]>>;
   recentlyViewedMessageIds: string[];
+  isFilterModalOpen: boolean;
+  setIsFilterModalOpen: (isOpen: boolean) => void;
+  activeFilters: ActiveFilters;
+  setActiveFilters: (filters: ActiveFilters) => void;
+  sortOrder: SortOrder;
+  setSortOrder: (sortOrder: SortOrder) => void;
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [accounts] = useState<Account[]>(ACCOUNTS);
-  const [folders] = useState<Folder[]>(FOLDERS);
+  const [folders, setFolders] = useState<Folder[]>(FOLDERS);
   const [messages] = useState<Message[]>(MESSAGES);
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(FOLDERS[0]);
   const [selectedMessage, setSelectedMessageState] = useState<Message | null>(null);
@@ -69,6 +78,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+  const [isAddFolderModalOpen, setIsAddFolderModalOpen] = useState(false);
   const [confirmationModalConfig, setConfirmationModalConfig] = useState<ConfirmationModalConfig | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -84,6 +94,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [theme, setThemeState] = useState<Theme>('light');
 
   const [recentlyViewedMessageIds, setRecentlyViewedMessageIds] = useState<string[]>(['msg_aws', 'msg_google']);
+
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const initialFilters: ActiveFilters = {
+    unread: false,
+    starred: false,
+    attachments: false,
+    unanswered: false,
+    favorites: false,
+    personal: false,
+    social: false,
+    updates: false,
+    forums: false,
+  };
+  const [activeFilters, setActiveFilters] = useState<ActiveFilters>(initialFilters);
+
+  const [sortOrder, setSortOrder] = useState<SortOrder>({ key: 'date', direction: 'desc' });
 
   const setSelectedMessage = (message: Message | null) => {
     setSelectedMessageState(message);
@@ -155,6 +181,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       value={{
         accounts,
         folders,
+        setFolders,
         messages,
         selectedFolder,
         setSelectedFolder,
@@ -176,6 +203,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         clearSelection,
         isMoveModalOpen,
         setIsMoveModalOpen,
+        isAddFolderModalOpen,
+        setIsAddFolderModalOpen,
         confirmationModalConfig,
         setConfirmationModalConfig,
         theme,
@@ -194,6 +223,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         groupChats,
         setGroupChats,
         recentlyViewedMessageIds,
+        isFilterModalOpen,
+        setIsFilterModalOpen,
+        activeFilters,
+        setActiveFilters,
+        sortOrder,
+        setSortOrder,
       }}
     >
       {children}

@@ -1,8 +1,7 @@
-
 import React from 'react';
 
 interface ChipProps {
-  label: string;
+  label: React.ReactNode;
   icon?: React.ReactNode;
   isActive?: boolean;
   onClick?: () => void;

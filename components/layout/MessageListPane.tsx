@@ -1,11 +1,12 @@
 import React, { useContext, useMemo, useState } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { MessageRow } from '../MessageRow';
-import { Message } from '../../types';
+import { Message, SortKey, MessageCategory } from '../../types';
 import { IconButton } from '../ui/IconButton';
 import { MenuIcon, EllipsisVerticalIcon, XMarkIcon, SearchIcon } from '../icons';
 import { DropdownMenu, DropdownMenuItem } from '../ui/Dropdown';
 import { BottomActionBar } from './BottomActionBar';
+import { Chip } from '../ui/Chip';
 
 interface MessageListPaneProps {
   className?: string;
@@ -28,9 +29,7 @@ const groupMessagesByDate = (messages: Message[]) => {
     return 'Older';
   };
 
-  const sortedMessages = [...messages].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-  sortedMessages.forEach(message => {
+  messages.forEach(message => {
     const key = getGroupKey(message.timestamp);
     if (!groups[key]) {
       groups[key] = [];
@@ -68,21 +67,112 @@ export const MessageListPane: React.FC<MessageListPaneProps> = ({ className, onM
   const { 
     messages, selectedFolder, selectedMessage, setSelectedMessage, accounts,
     isSelectionMode, setIsSelectionMode, selectedMessageIds, toggleMessageSelection,
-    selectAllMessages, clearSelection, setIsSearchOpen
+    selectAllMessages, clearSelection, setIsSearchOpen,
+    activeFilters, setIsFilterModalOpen,
+    sortOrder, setSortOrder
   } = useContext(AppContext);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const searchQuery = ''; // Search is handled by the modal now
   const currentAccount = accounts[0];
 
+  const categories: MessageCategory[] = ['Primary', 'Social', 'Promotions', 'Updates', 'Forums'];
+  const [activeCategory, setActiveCategory] = useState<MessageCategory>('Primary');
+
+  const handleSortChange = (key: SortKey) => {
+    if (sortOrder.key === key) {
+        setSortOrder({ key, direction: sortOrder.direction === 'asc' ? 'desc' : 'asc' });
+    } else {
+        const defaultDirection = (key === 'date') ? 'desc' : 'asc';
+        setSortOrder({ key, direction: defaultDirection });
+    }
+    setIsMenuOpen(false);
+  };
+
+  const categoryUnreadCounts = useMemo(() => {
+    const counts: Record<MessageCategory, number> = { Primary: 0, Promotions: 0, Social: 0, Updates: 0, Forums: 0 };
+    if (selectedFolder?.id !== 'inbox') return counts;
+
+    messages.filter(m => m.folder === 'inbox' || m.folder === 'in_design').forEach(m => {
+        if (!m.isRead) {
+            const category = m.category || 'Primary';
+            if (counts[category] !== undefined) {
+                counts[category]++;
+            }
+        }
+    });
+    return counts;
+  }, [messages, selectedFolder]);
+
   const filteredMessages = useMemo(() => {
       if (!selectedFolder) return [];
-      return messages.filter(m => m.folder === selectedFolder.id || (selectedFolder.id === 'inbox' && m.folder === 'in_design'));
-  }, [messages, selectedFolder]);
+      
+      let folderMessages = messages.filter(m => m.folder === selectedFolder.id || (selectedFolder.id === 'inbox' && m.folder === 'in_design'));
+      
+      if (selectedFolder.id === 'inbox') {
+        folderMessages = folderMessages.filter(m => {
+            const category = m.category || 'Primary';
+            return category === activeCategory;
+        });
+      }
+
+      const isAnyFilterActive = Object.values(activeFilters).some(v => v);
+  
+      if (!isAnyFilterActive) {
+          return folderMessages;
+      }
+  
+      return folderMessages.filter(message => {
+          // General filters (all must be true)
+          if (activeFilters.unread && message.isRead) return false;
+          if (activeFilters.starred && !message.isFlagged) return false;
+          if (activeFilters.attachments && message.attachments.length === 0) return false;
+          if (activeFilters.unanswered && message.isAnswered) return false;
+          if (activeFilters.favorites && !message.isFavorite) return false;
+  
+          // Label filters (at least one must be true, if any label filters are active)
+          const activeLabelFilters = (['personal', 'social', 'updates', 'forums'] as const)
+              .filter(label => activeFilters[label]);
+  
+          if (activeLabelFilters.length > 0) {
+              const messageLabels = message.labels?.map(l => l.toLowerCase()) || [];
+              if (!activeLabelFilters.some(filterLabel => messageLabels.includes(filterLabel))) {
+                  return false;
+              }
+          }
+  
+          return true;
+      });
+  }, [messages, selectedFolder, activeFilters, activeCategory]);
+
+  const sortedMessages = useMemo(() => {
+    return [...filteredMessages].sort((a, b) => {
+      const { key, direction } = sortOrder;
+      const dir = direction === 'asc' ? 1 : -1;
+
+      switch (key) {
+        case 'sender':
+          return a.sender.name.localeCompare(b.sender.name) * dir;
+        case 'subject':
+          return a.subject.localeCompare(b.subject) * dir;
+        case 'unread':
+          const unreadComparison = (a.isRead ? 1 : 0) - (b.isRead ? 1 : 0);
+          if (unreadComparison !== 0) {
+            // For unread, 'asc' means unread first, which matches the comparison.
+            return unreadComparison * (direction === 'asc' ? 1 : -1);
+          }
+          // Fallback to date sort if same read status
+          return b.timestamp.getTime() - a.timestamp.getTime();
+        case 'date':
+        default:
+          return (a.timestamp.getTime() - b.timestamp.getTime()) * dir;
+      }
+    });
+  }, [filteredMessages, sortOrder]);
     
   const displayMessages = useMemo(() => {
     const result: Message[] = [];
     const processedThreadIds = new Set<string>();
-    const sortedFolderMessages = [...filteredMessages].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    const sortedFolderMessages = sortedMessages;
 
     for (const message of sortedFolderMessages) {
       if (message.threadId && !processedThreadIds.has(message.threadId)) {
@@ -95,7 +185,7 @@ export const MessageListPane: React.FC<MessageListPaneProps> = ({ className, onM
       }
     }
     return result;
-  }, [filteredMessages]);
+  }, [sortedMessages]);
 
 
   const unreadTodayCount = useMemo(() => {
@@ -107,8 +197,13 @@ export const MessageListPane: React.FC<MessageListPaneProps> = ({ className, onM
   }, [filteredMessages]);
 
   const groupedMessages = useMemo(() => {
-    return groupMessagesByDate(isSelectionMode ? filteredMessages : displayMessages);
-  }, [isSelectionMode, filteredMessages, displayMessages]);
+    const messagesToProcess = isSelectionMode ? sortedMessages : displayMessages;
+    // Don't group by date if sorting is not default.
+    if (sortOrder.key !== 'date') {
+        return { 'Results': messagesToProcess };
+    }
+    return groupMessagesByDate(messagesToProcess);
+  }, [isSelectionMode, sortedMessages, displayMessages, sortOrder.key]);
   
   const handleSelectAll = () => {
     const allIds = filteredMessages.map(m => m.id);
@@ -119,6 +214,8 @@ export const MessageListPane: React.FC<MessageListPaneProps> = ({ className, onM
     clearSelection();
     setIsSelectionMode(false);
   };
+
+  const renderOrder = sortOrder.key === 'date' ? groupOrder : Object.keys(groupedMessages);
 
   if (isSelectionMode) {
     return (
@@ -141,8 +238,8 @@ export const MessageListPane: React.FC<MessageListPaneProps> = ({ className, onM
             
             <div className="flex-grow overflow-y-auto px-2">
                 {Object.keys(groupedMessages).length > 0 ? (
-                    groupOrder.map(groupKey => {
-                        if (!groupedMessages[groupKey]) return null;
+                    renderOrder.map(groupKey => {
+                        if (!groupedMessages[groupKey] || groupedMessages[groupKey].length === 0) return null;
                         return (
                         <div key={groupKey} className="mb-2">
                             <div className="px-4 py-2 flex justify-between items-center">
@@ -196,9 +293,15 @@ export const MessageListPane: React.FC<MessageListPaneProps> = ({ className, onM
                     <DropdownMenuItem onClick={() => { setIsMenuOpen(false); setIsSelectionMode(true); }}>
                         Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setIsMenuOpen(false); }}>
-                        Sort by
+                    <DropdownMenuItem onClick={() => { setIsMenuOpen(false); setIsFilterModalOpen(true); }}>
+                        Filter by
                     </DropdownMenuItem>
+                    <div className="my-1 border-t border-outline mx-2"></div>
+                    <div className="px-4 pt-2 pb-1 text-xs font-semibold text-on-surface-variant">SORT BY</div>
+                    <DropdownMenuItem onClick={() => handleSortChange('date')}>Date {sortOrder.key === 'date' && (sortOrder.direction === 'desc' ? '▾' : '▴')}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleSortChange('sender')}>Sender {sortOrder.key === 'sender' && (sortOrder.direction === 'desc' ? '▾' : '▴')}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleSortChange('subject')}>Subject {sortOrder.key === 'subject' && (sortOrder.direction === 'desc' ? '▾' : '▴')}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleSortChange('unread')}>Unread {sortOrder.key === 'unread' && (sortOrder.direction === 'desc' ? '▾' : '▴')}</DropdownMenuItem>
                 </DropdownMenu>
             </div>
         </div>
@@ -217,6 +320,33 @@ export const MessageListPane: React.FC<MessageListPaneProps> = ({ className, onM
                 </button>
             </div>
         </div>
+        
+        {selectedFolder?.id === 'inbox' && (
+            <div className="px-4 pb-2 shrink-0">
+                <div className="flex space-x-2 overflow-x-auto pb-1 -mx-2 px-2">
+                    {categories.map(category => {
+                        const unreadCount = categoryUnreadCounts[category];
+                        return (
+                            <Chip
+                                key={category}
+                                isActive={activeCategory === category}
+                                onClick={() => setActiveCategory(category)}
+                                label={
+                                    <div className="flex items-center space-x-2">
+                                        <span>{category}</span>
+                                        {unreadCount > 0 && (
+                                            <span className="bg-accent text-white text-xs font-bold px-1.5 h-5 flex items-center justify-center rounded-full min-w-[20px]">
+                                                {unreadCount}
+                                            </span>
+                                        )}
+                                    </div>
+                                }
+                            />
+                        );
+                    })}
+                </div>
+            </div>
+        )}
 
       <div className="flex-grow overflow-y-auto px-2">
         {unreadTodayCount > 0 && selectedFolder?.id === 'inbox' && !searchQuery && (
@@ -231,14 +361,16 @@ export const MessageListPane: React.FC<MessageListPaneProps> = ({ className, onM
         )}
 
         {Object.keys(groupedMessages).length > 0 ? (
-          groupOrder.map(groupKey => {
-            if (!groupedMessages[groupKey]) return null;
+          renderOrder.map(groupKey => {
+            if (!groupedMessages[groupKey] || groupedMessages[groupKey].length === 0) return null;
             return (
               <div key={groupKey} className="mb-2">
-                <div className="px-4 py-2 flex justify-between items-center">
-                  <h3 className="text-sm font-semibold text-on-surface-variant">{groupKey}</h3>
-                  {groupKey === 'Today' && <p className="text-xs text-on-surface-variant">Last synced 15:33</p>}
-                </div>
+                 {groupKey !== 'Results' && (
+                    <div className="px-4 py-2 flex justify-between items-center">
+                        <h3 className="text-sm font-semibold text-on-surface-variant">{groupKey}</h3>
+                        {groupKey === 'Today' && <p className="text-xs text-on-surface-variant">Last synced 15:33</p>}
+                    </div>
+                 )}
                 <div className="space-y-2">
                   {groupedMessages[groupKey].map(message => (
                     <MessageRow 

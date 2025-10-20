@@ -22,6 +22,9 @@ const FolderItem: React.FC<{folder: Folder, isSelected: boolean, onSelect: (fold
     const selectedClasses = `bg-primary-container text-on-surface font-semibold`;
     const unselectedClasses = `text-on-surface-variant hover:bg-primary-container/50`;
     const vipClasses = folder.isVip ? 'text-vip' : '';
+    
+    const Icon = folder.icon;
+    const iconStyle = isSelected ? {} : { color: folder.color };
 
     return (
         <li>
@@ -33,7 +36,7 @@ const FolderItem: React.FC<{folder: Folder, isSelected: boolean, onSelect: (fold
                 <div className={`flex items-center font-medium ${vipClasses}`}>
                     {folder.isVip ? 
                         <span className="w-5 text-center mr-4 text-xs font-bold">VIP</span> 
-                        : <folder.icon className="h-5 w-5 mr-4" />}
+                        : <Icon className="h-5 w-5 mr-4" style={iconStyle} />}
                     <span>{folder.name}</span>
                 </div>
                 {folder.unreadCount && folder.unreadCount > 0 ? (
@@ -66,7 +69,7 @@ const MoreItem: React.FC<{
 export const Drawer: React.FC<DrawerProps> = ({ isOpen, onClose }) => {
   const { 
       folders, selectedFolder, setSelectedFolder, accounts, 
-      setIsSettingsOpen, setInitialSettingsView
+      setIsSettingsOpen, setInitialSettingsView, setIsAddFolderModalOpen
   } = useContext(AppContext);
 
   const [isAllFoldersOpen, setAllFoldersOpen] = useState(false);
@@ -134,19 +137,24 @@ export const Drawer: React.FC<DrawerProps> = ({ isOpen, onClose }) => {
            <ul className="space-y-1">
                 <MoreItem icon={Cog6ToothIcon} title="Preferences" onClick={() => handleOpenSettings('main')} />
                 <MoreItem icon={SparklesIcon} title="Get Pro" onClick={() => alert('Get Pro clicked')} />
-                <MoreItem icon={HeartIcon} title="Love Canary?" onClick={() => alert('Love Canary? clicked')} />
                 <MoreItem icon={QuestionMarkCircleIcon} title="Help" onClick={() => handleOpenSettings('contactUs')} />
                 <MoreItem icon={InformationCircleIcon} title="Privacy Policy" onClick={() => alert('Privacy Policy clicked')} />
                 <MoreItem icon={CheckSquareIcon} title="App Progress" value="33%" onClick={() => handleOpenSettings('appProgress')} />
             </ul>
 
           <div className="mt-4">
-            <div 
-              className="flex items-center justify-between px-4 py-2 cursor-pointer"
-              onClick={() => setAllFoldersOpen(!isAllFoldersOpen)}
-            >
-              <h3 className="text-sm font-semibold text-on-surface">All folders</h3>
-              {isAllFoldersOpen ? <ChevronUpIcon className="h-4 w-4 text-on-surface-variant" /> : <ChevronDownIcon className="h-4 w-4 text-on-surface-variant" />}
+            <div className="flex items-center justify-between px-2">
+                <div
+                    className="flex items-center flex-grow cursor-pointer p-2 rounded-lg hover:bg-primary-container/30"
+                    onClick={() => setAllFoldersOpen(!isAllFoldersOpen)}
+                    aria-expanded={isAllFoldersOpen}
+                >
+                    <h3 className="text-sm font-semibold text-on-surface">All folders</h3>
+                    {isAllFoldersOpen ? <ChevronUpIcon className="h-4 w-4 ml-2 text-on-surface-variant" /> : <ChevronDownIcon className="h-4 w-4 ml-2 text-on-surface-variant" />}
+                </div>
+                <button onClick={() => setIsAddFolderModalOpen(true)} className="p-2 rounded-lg hover:bg-primary-container/50" aria-label="Add new folder">
+                    <PlusIcon className="h-5 w-5 text-on-surface-variant" />
+                </button>
             </div>
 
             {isAllFoldersOpen && (

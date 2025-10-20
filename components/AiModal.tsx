@@ -139,14 +139,14 @@ export const AiModal: React.FC = () => {
 
     return (
         <div className="flex-grow bg-bg flex flex-col overflow-hidden">
-            <header className="flex items-center justify-between p-4 shrink-0">
+            <header className="flex items-center justify-between p-4 shrink-0 border-b border-outline">
                 <h1 className="text-3xl font-bold text-on-surface">Copilot</h1>
                 <button onClick={() => setView('dashboard')} aria-label="Open Dashboard">
                     <Squares2x2Icon className="h-6 w-6 text-on-surface" />
                 </button>
             </header>
-
-            <main className="flex-grow overflow-y-auto px-4">
+            
+            <main className="flex-grow overflow-y-auto px-4 pt-4">
                 <div className="space-y-4 pb-4">
                     {messages.map((msg) => {
                         if (msg.text.trim() === '') return null; // Don't render empty placeholder
