@@ -2459,6 +2459,23 @@ const views = {
 const RETRIEVAL_SIZE_OPTIONS = ['Headers only', '0.5 KB', '1 KB', '2 KB', '5 KB', '10 KB', '20 KB', '50 KB', '100 KB', 'No limit'];
 const ROAMING_RETRIEVAL_SIZE_OPTIONS = ['Use retrieval size setting', ...RETRIEVAL_SIZE_OPTIONS];
 
+interface SearchableSetting {
+    id: string;
+    title: string;
+    path: string[];
+    keywords?: string[];
+    onClick: () => void;
+}
+
+const SearchResultItem: React.FC<{ item: SearchableSetting }> = ({ item }) => {
+    return (
+        <button onClick={item.onClick} className="w-full text-left px-4 py-3 hover:bg-surface-alt">
+            <p className="font-medium text-on-surface">{item.title}</p>
+            <p className="text-sm text-on-surface-variant">{item.path.join(' > ')}</p>
+        </button>
+    );
+};
+
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const { accounts, darkModeOption, setDarkModeOption, initialSettingsView, setInitialSettingsView } = useContext(AppContext);
   const currentAccount = accounts[0];
@@ -2523,15 +2540,77 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const [passcode, setPasscode] = useState<string | null>(null);
   const [isPasscodeModalOpen, setIsPasscodeModalOpen] = useState(false);
 
+  const [searchQuery, setSearchQuery] = useState('');
+
   useEffect(() => {
     if (isOpen) {
         setView(initialSettingsView as keyof typeof views || 'main');
+    } else {
+        setSearchQuery(''); // Clear search on close
     }
   }, [isOpen, initialSettingsView]);
+  
+  const searchableSettings: SearchableSetting[] = React.useMemo(() => {
+    const accountPath = ['Accounts', currentAccount.email];
+    return [
+    // Main Settings
+    { id: 'account', title: currentAccount.email, path: ['Accounts'], keywords: ['sync', 'signature', 'folders', 'server', 'exchange', 'settings', 'remove', 'delete'], onClick: () => setView('account') },
+    { id: 'addAccount', title: 'Add account', path: ['Accounts'], keywords: ['new', 'email', 'user'], onClick: () => setView('addAccount') },
+    { id: 'manageFolders', title: 'Manage folders', path: ['General'], keywords: ['reorder', 'show', 'hide', 'labels'], onClick: () => setView('manageFolders') },
+    { id: 'copilot', title: 'Copilot', path: ['General'], keywords: ['ai', 'assistant', 'gemini', 'chat', 'summarize'], onClick: () => setView('copilot') },
+    { id: 'viewMode', title: 'View', path: ['General'], keywords: ['conversation', 'standard', 'layout'], onClick: () => setIsViewPopupOpen(true) },
+    { id: 'darkMode', title: 'Dark mode', path: ['General'], keywords: ['theme', 'night', 'appearance', 'background'], onClick: () => setIsDarkModePopupOpen(true) },
+    { id: 'previewLines', title: 'Preview Lines', path: ['General'], keywords: ['snippet', 'list', 'summary'], onClick: () => setIsPreviewLinesPopupOpen(true) },
+    { id: 'swipeActions', title: 'Swipe actions', path: ['General'], keywords: ['gesture', 'left', 'right', 'delete', 'archive'], onClick: () => setView('swipeActions') },
+    { id: 'threadActions', title: 'Thread Actions', path: ['General'], keywords: ['conversation', 'buttons', 'quick'], onClick: () => setView('threadActions') },
+    { id: 'customizeTimes', title: 'Customize Times', path: ['General'], keywords: ['schedule', 'snooze', 'send later'], onClick: () => setView('customizeTimes') },
+    { id: 'autoFit', title: 'Auto fit content', path: ['General'], keywords: ['zoom', 'shrink', 'fit', 'screen', 'width'], onClick: () => setAutoFitContent(v => !v) },
+    { id: 'notifications', title: 'Notifications', path: ['General'], keywords: ['alerts', 'sounds', 'badges', 'push'], onClick: () => setView('notifications') },
+    { id: 'badgeCounts', title: 'App icon badge counts', path: ['General', 'Notifications'], keywords: ['unread', 'new', 'count'], onClick: () => setIsBadgeCountPopupOpen(true) },
+    { id: 'spam', title: 'Spam addresses', path: ['General'], keywords: ['junk', 'block', 'filter'], onClick: () => alert('Spam addresses clicked') },
+    { id: 'splitView', title: 'Split view', path: ['General'], keywords: ['landscape', 'tablet', 'layout', 'panes'], onClick: () => setSplitView(v => !v) },
+    { id: 'translator', title: 'Translator', path: ['Privacy'], keywords: ['language', 'translate'], onClick: () => setView('translator') },
+    { id: 'permissions', title: 'Permissions', path: ['Privacy'], keywords: ['privacy', 'access', 'camera', 'contacts', 'location'], onClick: () => setView('permissions') },
+    { id: 'security', title: 'Security', path: ['Privacy'], keywords: ['privacy', 'encryption', 'passcode', 'pgp'], onClick: () => setView('security') },
+    { id: 'about', title: 'About Email', path: [], keywords: ['version', 'info', 'update'], onClick: () => setView('aboutEmail') },
+    { id: 'contact', title: 'Contact us', path: [], keywords: ['help', 'support', 'feedback', 'faq'], onClick: () => setView('contactUs') },
+    // Account Settings
+    { id: 'syncEmails', title: 'Sync emails', path: accountPath, keywords: ['sync'], onClick: () => setView('account') },
+    { id: 'syncCalendars', title: 'Sync calendars', path: accountPath, keywords: ['sync'], onClick: () => setView('account') },
+    { id: 'syncSchedule', title: 'Email sync schedule', path: accountPath, keywords: ['sync', 'time', 'schedule', 'peak'], onClick: () => setView('syncSchedule') },
+    { id: 'emailFoldersToSync', title: 'Email folders to sync', path: accountPath, keywords: ['sync', 'folders'], onClick: () => setView('emailFoldersToSync') },
+    { id: 'emailSyncPeriod', title: 'Email sync period', path: accountPath, keywords: ['sync', 'period', 'time'], onClick: () => setView('emailSyncPeriod') },
+    { id: 'limitRetrievalSize', title: 'Limit retrieval size', path: accountPath, keywords: ['download', 'size', 'data'], onClick: () => setView('limitRetrievalSize') },
+    { id: 'roamingRetrievalSize', title: 'Limit retrieval size while roaming', path: accountPath, keywords: ['download', 'size', 'data', 'roaming'], onClick: () => setView('roamingLimitRetrievalSize') },
+    { id: 'accountNameAndColor', title: 'Account name and colour', path: accountPath, keywords: ['name', 'color', 'customise'], onClick: () => { setView('account'); setIsAccountModalOpen(true); } },
+    { id: 'alwaysCcBcc', title: 'Always Cc/Bcc myself', path: accountPath, keywords: ['compose', 'reply', 'cc', 'bcc'], onClick: () => setView('account') },
+    { id: 'signature', title: 'Signature', path: accountPath, keywords: ['sign', 'footer', 'compose'], onClick: () => { setView('account'); setIsSignatureModalOpen(true); } },
+    { id: 'showImages', title: 'Show images', path: accountPath, keywords: ['display', 'pictures', 'remote content'], onClick: () => setView('account') },
+    { id: 'autoDownloadAttachments', title: 'Auto download attachments', path: accountPath, keywords: ['download', 'files', 'attachments', 'wifi'], onClick: () => setView('account') },
+    { id: 'outOfOffice', title: 'Out of office reply', path: accountPath, keywords: ['away', 'auto-reply', 'vacation'], onClick: () => { setView('account'); setIsOutOfOfficeOpen(true); } },
+    { id: 'emptyRecycleBin', title: 'Empty Recycle bin', path: accountPath, keywords: ['trash', 'delete', 'clear'], onClick: () => { setView('account'); setShowEmptyBinConfirm(true); } },
+    { id: 'encryptionOptions', title: 'Encryption options', path: [...accountPath, 'Advanced settings'], keywords: ['security', 's/mime', 'encrypt', 'sign'], onClick: () => setView('securityOptions') },
+    { id: 'exchangeSettings', title: 'Exchange server settings', path: [...accountPath, 'Advanced settings'], keywords: ['server', 'exchange', 'domain', 'ssl'], onClick: () => setView('exchangeServerSettings') },
+  ];
+  }, [currentAccount.email, setView]);
+  
+  const searchResults = React.useMemo(() => {
+    if (!searchQuery.trim()) {
+        return [];
+    }
+    const lowerQuery = searchQuery.toLowerCase();
+    return searchableSettings.filter(item =>
+        item.title.toLowerCase().includes(lowerQuery) ||
+        item.path.join(' ').toLowerCase().includes(lowerQuery) ||
+        item.keywords?.some(k => k.toLowerCase().includes(lowerQuery))
+    );
+  }, [searchQuery, searchableSettings]);
+
 
   const handleClose = () => {
     setView('main'); // Reset view before closing
     setInitialSettingsView(null);
+    setSearchQuery('');
     onClose();
   };
   
@@ -2706,98 +2785,140 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                         <h2 className="text-xl font-bold text-on-surface flex-grow text-center">Email settings</h2>
                         <div className="w-10"></div> 
                     </header>
+                    <div className="p-4 border-b border-outline">
+                        <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <SearchIcon className="h-5 w-5 text-on-surface-variant" />
+                            </div>
+                            <input
+                                type="search"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search settings"
+                                className="block w-full bg-surface-alt border border-transparent rounded-full py-2.5 pl-10 pr-10 text-on-surface placeholder-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary"
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                                    aria-label="Clear search"
+                                >
+                                    <XMarkIcon className="h-5 w-5 text-on-surface-variant" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
 
-                    <main className="flex-grow overflow-y-auto p-4 pb-8 space-y-6">
-                        <div className="space-y-2">
-                        <SettingsSection title="Accounts" />
-                        <SettingsCard>
-                            <button className="w-full text-left" onClick={() => setView('account')}>
-                                <div className="p-4 flex items-center">
-                                    <ExchangeIcon className="h-10 w-10 mr-4 shrink-0" />
-                                    <div className="flex-grow">
-                                        <p className="font-semibold text-on-surface">{currentAccount.email}</p>
-                                        <p className="text-xs text-on-surface-variant">Last synced on 14/10/2025 15:28</p>
-                                    </div>
+                    <main className={`flex-grow overflow-y-auto ${searchQuery.trim() ? '' : 'p-4 pb-8 space-y-6'}`}>
+                        {searchQuery.trim() ? (
+                            searchResults.length > 0 ? (
+                                <div className="py-2">
+                                    {searchResults.map((item, index) => (
+                                        <React.Fragment key={item.id}>
+                                            <SearchResultItem item={item} />
+                                            {index < searchResults.length - 1 && <div className="border-t border-outline mx-4"></div>}
+                                        </React.Fragment>
+                                    ))}
                                 </div>
-                            </button>
-                            <div className="border-t border-outline mx-4"></div>
-                            <SettingsItem 
-                            icon={<PlusIcon className="h-6 w-6 text-green-500" />}
-                            title="Add account"
-                            onClick={() => setView('addAccount')}
-                            />
-                        </SettingsCard>
-                        </div>
-                        
-                        <div className="space-y-2">
-                        <SettingsSection title="General" />
-                        <SettingsCard>
-                            <SettingsItem title="Manage folders" description="Show, hide, or reorder your mail folders." onClick={() => setView('manageFolders')} />
-                            <div className="border-t border-outline mx-4"></div>
-                            <SettingsItem title="Copilot" onClick={() => setView('copilot')} />
-                            <div className="border-t border-outline mx-4"></div>
-                             <div ref={viewItemRef}>
-                                <SettingsItem title="View" value={viewMode} onClick={() => setIsViewPopupOpen(true)} />
-                            </div>
-                            <div className="border-t border-outline mx-4"></div>
-                            <div ref={darkModeItemRef}>
-                                <SettingsItem title="Dark mode" value={darkModeOption} onClick={() => setIsDarkModePopupOpen(true)} />
-                            </div>
-                            <div className="border-t border-outline mx-4"></div>
-                             <div ref={previewLinesItemRef}>
-                                <SettingsItem title="Preview Lines" value={previewLines} onClick={() => setIsPreviewLinesPopupOpen(true)} />
-                            </div>
-                            <div className="border-t border-outline mx-4"></div>
-                            <SettingsItem 
-                                title="Swipe actions" 
-                                description="Choose what happens when you swipe left or right on your email list." 
-                                onClick={() => setView('swipeActions')} 
-                            />
-                            <div className="border-t border-outline mx-4"></div>
-                            <SettingsItem
-                                title="Thread Actions"
-                                description="Customise the actions available in the thread view."
-                                onClick={() => setView('threadActions')}
-                            />
-                            <div className="border-t border-outline mx-4"></div>
-                            <SettingsItem
-                                title="Customize Times"
-                                description="Set default times for Snooze, Secure Send, and Send Later."
-                                onClick={() => setView('customizeTimes')}
-                            />
-                            <div className="border-t border-outline mx-4"></div>
-                            <SettingsItem title="Auto fit content" description="Shrink email content to fit the screen." hasToggle isToggleOn={autoFitContent} onToggle={setAutoFitContent} />
-                            <div className="border-t border-outline mx-4"></div>
-                            <SettingsItem title="Notifications" description="Manage notification settings for VIPs and for each of your email accounts." onClick={() => setView('notifications')} />
-                            <div className="border-t border-outline mx-4"></div>
-                            <div ref={badgeCountItemRef}>
-                                <SettingsItem title="App icon badge counts" value={badgeCountOption} onClick={() => setIsBadgeCountPopupOpen(true)} />
-                            </div>
-                            <div className="border-t border-outline mx-4"></div>
-                            <SettingsItem title="Spam addresses" description="Edit your list of spam senders." />
-                            <div className="border-t border-outline mx-4"></div>
-                            <SettingsItem title="Split view" description="Split the screen in landscape view." hasToggle isToggleOn={splitView} onToggle={setSplitView}/>
-                            <div className="border-t border-outline mx-4"></div>
-                            <SettingsItem title="Translator" onClick={() => setView('translator')} />
-                        </SettingsCard>
-                        </div>
-
-                        <div className="space-y-2">
-                        <SettingsSection title="Privacy" />
-                        <SettingsCard>
-                            <SettingsItem title="Permissions" onClick={() => setView('permissions')} />
-                            <div className="border-t border-outline mx-4"></div>
-                            <SettingsItem title="Security" onClick={() => setView('security')} />
-                        </SettingsCard>
-                        </div>
-                        
-                        <div className="space-y-2">
-                        <SettingsCard>
-                            <SettingsItem title="About Email" onClick={() => setView('aboutEmail')} />
-                            <div className="border-t border-outline mx-4"></div>
-                            <SettingsItem title="Contact us" onClick={() => setView('contactUs')} />
-                        </SettingsCard>
-                        </div>
+                            ) : (
+                                <div className="text-center p-10 text-on-surface-variant">
+                                    No results found for "{searchQuery}"
+                                </div>
+                            )
+                        ) : (
+                            <>
+                                <div className="space-y-2">
+                                <SettingsSection title="Accounts" />
+                                <SettingsCard>
+                                    <button className="w-full text-left" onClick={() => setView('account')}>
+                                        <div className="p-4 flex items-center">
+                                            <ExchangeIcon className="h-10 w-10 mr-4 shrink-0" />
+                                            <div className="flex-grow">
+                                                <p className="font-semibold text-on-surface">{currentAccount.email}</p>
+                                                <p className="text-xs text-on-surface-variant">Last synced on 14/10/2025 15:28</p>
+                                            </div>
+                                        </div>
+                                    </button>
+                                    <div className="border-t border-outline mx-4"></div>
+                                    <SettingsItem 
+                                    icon={<PlusIcon className="h-6 w-6 text-green-500" />}
+                                    title="Add account"
+                                    onClick={() => setView('addAccount')}
+                                    />
+                                </SettingsCard>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                <SettingsSection title="General" />
+                                <SettingsCard>
+                                    <SettingsItem title="Manage folders" description="Show, hide, or reorder your mail folders." onClick={() => setView('manageFolders')} />
+                                    <div className="border-t border-outline mx-4"></div>
+                                    <SettingsItem title="Copilot" onClick={() => setView('copilot')} />
+                                    <div className="border-t border-outline mx-4"></div>
+                                     <div ref={viewItemRef}>
+                                        <SettingsItem title="View" value={viewMode} onClick={() => setIsViewPopupOpen(true)} />
+                                    </div>
+                                    <div className="border-t border-outline mx-4"></div>
+                                    <div ref={darkModeItemRef}>
+                                        <SettingsItem title="Dark mode" value={darkModeOption} onClick={() => setIsDarkModePopupOpen(true)} />
+                                    </div>
+                                    <div className="border-t border-outline mx-4"></div>
+                                     <div ref={previewLinesItemRef}>
+                                        <SettingsItem title="Preview Lines" value={previewLines} onClick={() => setIsPreviewLinesPopupOpen(true)} />
+                                    </div>
+                                    <div className="border-t border-outline mx-4"></div>
+                                    <SettingsItem 
+                                        title="Swipe actions" 
+                                        description="Choose what happens when you swipe left or right on your email list." 
+                                        onClick={() => setView('swipeActions')} 
+                                    />
+                                    <div className="border-t border-outline mx-4"></div>
+                                    <SettingsItem
+                                        title="Thread Actions"
+                                        description="Customise the actions available in the thread view."
+                                        onClick={() => setView('threadActions')}
+                                    />
+                                    <div className="border-t border-outline mx-4"></div>
+                                    <SettingsItem
+                                        title="Customize Times"
+                                        description="Set default times for Snooze, Secure Send, and Send Later."
+                                        onClick={() => setView('customizeTimes')}
+                                    />
+                                    <div className="border-t border-outline mx-4"></div>
+                                    <SettingsItem title="Auto fit content" description="Shrink email content to fit the screen." hasToggle isToggleOn={autoFitContent} onToggle={setAutoFitContent} />
+                                    <div className="border-t border-outline mx-4"></div>
+                                    <SettingsItem title="Notifications" description="Manage notification settings for VIPs and for each of your email accounts." onClick={() => setView('notifications')} />
+                                    <div className="border-t border-outline mx-4"></div>
+                                    <div ref={badgeCountItemRef}>
+                                        <SettingsItem title="App icon badge counts" value={badgeCountOption} onClick={() => setIsBadgeCountPopupOpen(true)} />
+                                    </div>
+                                    <div className="border-t border-outline mx-4"></div>
+                                    <SettingsItem title="Spam addresses" description="Edit your list of spam senders." />
+                                    <div className="border-t border-outline mx-4"></div>
+                                    <SettingsItem title="Split view" description="Split the screen in landscape view." hasToggle isToggleOn={splitView} onToggle={setSplitView}/>
+                                    <div className="border-t border-outline mx-4"></div>
+                                    <SettingsItem title="Translator" onClick={() => setView('translator')} />
+                                </SettingsCard>
+                                </div>
+        
+                                <div className="space-y-2">
+                                <SettingsSection title="Privacy" />
+                                <SettingsCard>
+                                    <SettingsItem title="Permissions" onClick={() => setView('permissions')} />
+                                    <div className="border-t border-outline mx-4"></div>
+                                    <SettingsItem title="Security" onClick={() => setView('security')} />
+                                </SettingsCard>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                <SettingsCard>
+                                    <SettingsItem title="About Email" onClick={() => setView('aboutEmail')} />
+                                    <div className="border-t border-outline mx-4"></div>
+                                    <SettingsItem title="Contact us" onClick={() => setView('contactUs')} />
+                                </SettingsCard>
+                                </div>
+                            </>
+                        )}
                     </main>
                 </>
             );
