@@ -2791,7 +2791,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                 <SearchIcon className="h-5 w-5 text-on-surface-variant" />
                             </div>
                             <input
-                                type="search"
+                                type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Search settings"
